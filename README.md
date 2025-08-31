@@ -1,5 +1,16 @@
 # turtlebot3_wall_following_node
-ROS node using a naive turtlebot3 wall following algorithm.
+ROS node using a naive turtlebot3 wall following algorithm. Targets ros2 jazzy.
+
+## deps
+```
+sudo apt install ros-jazzy-ros-gz ros-jazzy-ros-gz-sim -y
+```
+
+expects following repos to also be in ./src:
+- https://github.com/jamesGadoury/turtlebot3_msgs
+- https://github.com/jamesGadoury/turtlebot3
+- https://github.com/jamesGadoury/turtlebot3_simulations
+- https://github.com/jamesGadoury/DynamixelSDK
 
 ## build
 ```

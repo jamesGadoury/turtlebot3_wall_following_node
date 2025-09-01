@@ -13,6 +13,10 @@ vector<LaserDetection> to_laser_detections(const sensor_msgs::msg::LaserScan& sc
 
     for (float range : scan.ranges)
     {
+        if (!std::isfinite(range))
+        {
+            continue;
+        }
         LaserDetection detection;
         detection.distance = range;
         detection.angle = angle;

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "geometry_msgs/msg/pose.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "turtlebot3_wall_following_node/laser_detection.hpp"

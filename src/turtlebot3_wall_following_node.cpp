@@ -1,6 +1,6 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "turtlebot3_wall_following_node/laser_detection.hpp"
-#include "turtlebot3_wall_following_node/point.hpp"
+#include "turtlebot3_wall_following_node/msg_utils.hpp"
 
 #include <chrono>
 #include <memory>
@@ -9,36 +9,29 @@
 #include <rclcpp/timer.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <string>
-#include <tf2_msgs/msg/tf_message.hpp>
 
+using std::optional;
 using std::vector;
 
 namespace turtlebot3
 {
 
-Point find_nearest_point(const vector<Point>& points)
+LaserDetection find_nearest_detection(const vector<LaserDetection>& detections)
 {
-    // TODO: clean up above types and this func
-    std::optional<double> min_distance;
-    std::optional<Point> nearest_point;
-    for (auto p : map.cartesian)
+    optional<LaserDetection> nearest_detection;
+    for (auto detection : detections)
     {
-        if (std::isnan(p.x) || std::isnan(p.y))
+        if (!nearest_detection.has_value() ||
+            detection.distance < nearest_detection.value().distance)
         {
-            continue;
-        }
-        const auto d = distance(p);
-        if (!min_distance.has_value() || d < min_distance.value())
-        {
-            min_distance = d;
-            nearest_point = p;
+            nearest_detection = detection;
         }
     }
-    if (!nearest_point.has_value())
+    if (!nearest_detection.has_value())
     {
         throw std::runtime_error("wtf");
     }
-    return nearest_point.value();
+    return nearest_detection.value();
 }
 
 class WallFollower : public rclcpp::Node
@@ -89,13 +82,13 @@ public:
         const auto& pose{last_pose_update_.value()};
 
         RCLCPP_INFO(get_logger(), "[update] pose='%s'", to_string(pose).c_str());
-        const DistanceMap distance_map{to_distance_map(last_scan_update_.value())};
+        const vector<LaserDetection> detections{to_laser_detections(last_scan_update_.value())};
 
-        const Point nearest_point{find_nearest_point(distance_map)};
+        const LaserDetection nearest{find_nearest_detection(detections)};
         RCLCPP_INFO(get_logger(),
             "[update] nearest_point={x: '%f', y: '%f'}",
-            nearest_point.x,
-            nearest_point.y);
+            nearest.x(),
+            nearest.y());
     }
 
 private:

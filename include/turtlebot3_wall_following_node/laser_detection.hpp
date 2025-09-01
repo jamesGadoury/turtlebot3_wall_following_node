@@ -1,6 +1,9 @@
-#include "turtlebot3_wall_following_node/point.hpp"
+#pragma once
 
-#include <vector>
+#include <cmath>
+
+using std::cos;
+using std::sin;
 
 namespace turtlebot3
 {
@@ -9,9 +12,15 @@ struct LaserDetection
 {
     float distance;
     float angle;
-};
 
-Point to_point(const LaserDetection& detection);
-std::vector<Point> to_points(const std::vector<LaserDetection>& detections);
+    float x() const
+    {
+        return distance * cos(angle);
+    }
+    float y() const
+    {
+        return distance * sin(angle);
+    }
+};
 
 } // namespace turtlebot3

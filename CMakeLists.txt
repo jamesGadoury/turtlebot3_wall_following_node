@@ -15,7 +15,9 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_msgs REQUIRED)
 
-add_executable(turtlebot3_wall_following_node src/turtlebot3_wall_following_node.cpp)
+set(SOURCES src/turtlebot3_wall_following_node.cpp src/msg_utils.cpp)
+
+add_executable(turtlebot3_wall_following_node ${SOURCES})
 target_include_directories(turtlebot3_wall_following_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)

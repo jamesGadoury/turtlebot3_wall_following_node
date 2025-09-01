@@ -1,5 +1,8 @@
 #include "turtlebot3_wall_following_node/msg_utils.hpp"
 
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+
 using std::string;
 using std::vector;
 
@@ -26,6 +29,33 @@ vector<LaserDetection> to_laser_detections(const sensor_msgs::msg::LaserScan& sc
     }
 
     return detections;
+}
+
+visualization_msgs::msg::Marker to_marker(const LaserDetection& detection)
+{
+    visualization_msgs::msg::Marker m;
+    m.header.frame_id = "odom"; // must exist in TF or match RViz Fixed Frame
+    // m.header.stamp = node->now();
+    // m.ns = "demo";
+    m.id = 0;
+    m.pose.position.x = detection.x();
+    m.pose.position.y = detection.y();
+    m.type = visualization_msgs::msg::Marker::SPHERE;
+    m.action = visualization_msgs::msg::Marker::ADD;
+    m.scale.x = 0.3; // meters
+    m.scale.y = 0.3;
+    m.scale.z = 0.3;
+
+    // Color (RGBA in [0,1])
+    m.color.r = 0.2f;
+    m.color.g = 0.7f;
+    m.color.b = 1.0f;
+    m.color.a = 1.0f;
+
+    // Keep on screen for 0 = forever (until overridden/DELETED)
+    m.lifetime = rclcpp::Duration::from_seconds(0.0);
+
+    return m;
 }
 
 string to_string(const geometry_msgs::msg::Pose& pose)

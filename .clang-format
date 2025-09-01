@@ -1,0 +1,49 @@
+# Base
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Access modifiers flush with class scope
+AccessModifierOffset: -4
+
+# Braces
+BreakBeforeBraces: Allman
+
+# Arguments & parameters formatting
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AlignAfterOpenBracket: DontAlign
+ContinuationIndentWidth: 4
+# Encourage breaking before the first arg so calls look like:
+# func(
+#     a,
+#     b
+# );
+PenaltyBreakBeforeFirstCallParameter: 1
+
+# Constructor initializer lists: one-per-line and indented cleanly
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+BreakConstructorInitializers: AfterColon
+ConstructorInitializerIndentWidth: 4
+
+# Keep things readable/consistent
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+ColumnLimit: 100
+
+# Switch/case and namespaces
+IndentCaseLabels: false
+NamespaceIndentation: None
+
+# Includes and pointer/reference alignment
+SortIncludes: true
+IncludeBlocks: Regroup
+PointerAlignment: Left
+ReferenceAlignment: Left
+

@@ -1,19 +1,19 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
+
 #include <chrono>
 #include <memory>
-#include <rclcpp/timer.hpp>
-#include <sstream>
-#include <string>
-
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/timer.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <sstream>
+#include <string>
 #include <tf2_msgs/msg/tf_message.hpp>
 
 namespace turtlebot3
 {
 
-std::string to_string(const geometry_msgs::msg::Pose &pose)
+std::string to_string(const geometry_msgs::msg::Pose& pose)
 {
     std::stringstream ss;
     ss << "{";
@@ -31,7 +31,7 @@ std::string to_string(const geometry_msgs::msg::Pose &pose)
     return ss.str();
 }
 
-std::string to_string(const nav_msgs::msg::Odometry &odom)
+std::string to_string(const nav_msgs::msg::Odometry& odom)
 {
     std::stringstream ss;
     ss << "{";
@@ -53,11 +53,11 @@ struct Point
 struct DistanceMap
 {
     // Metadata from LaserScan
-    double angle_min;        // start angle of the scan [rad]
-    double angle_max;        // end angle of the scan [rad]
-    double angle_increment;  // angular distance between measurements [rad]
-    double range_min;        // minimum valid range [m]
-    double range_max;        // maximum valid range [m]
+    double angle_min;       // start angle of the scan [rad]
+    double angle_max;       // end angle of the scan [rad]
+    double angle_increment; // angular distance between measurements [rad]
+    double range_min;       // minimum valid range [m]
+    double range_max;       // maximum valid range [m]
 
     // Measured ranges (distance values, clipped by min/max)
     std::vector<float> ranges;
@@ -66,21 +66,27 @@ struct DistanceMap
     std::vector<Point> cartesian;
 
     // Utility: number of beams
-    size_t size() const { return ranges.size(); }
+    size_t size() const
+    {
+        return ranges.size();
+    }
 
     // Utility: get angle for beam i
-    double angle(size_t i) const { return angle_min + i * angle_increment; }
+    double angle(size_t i) const
+    {
+        return angle_min + i * angle_increment;
+    }
 };
 
-DistanceMap to_distance_map(const sensor_msgs::msg::LaserScan &msg)
+DistanceMap to_distance_map(const sensor_msgs::msg::LaserScan& msg)
 {
     DistanceMap map;
-    map.angle_min       = msg.angle_min;
-    map.angle_max       = msg.angle_max;
+    map.angle_min = msg.angle_min;
+    map.angle_max = msg.angle_max;
     map.angle_increment = msg.angle_increment;
-    map.range_min       = msg.range_min;
-    map.range_max       = msg.range_max;
-    map.ranges          = msg.ranges;
+    map.range_min = msg.range_min;
+    map.range_max = msg.range_max;
+    map.ranges = msg.ranges;
 
     // Precompute Cartesian coordinates (x, y) for each valid range
     map.cartesian.reserve(msg.ranges.size());
@@ -90,8 +96,8 @@ DistanceMap to_distance_map(const sensor_msgs::msg::LaserScan &msg)
         if (std::isfinite(r) && r >= msg.range_min && r <= msg.range_max)
         {
             const double angle = msg.angle_min + i * msg.angle_increment;
-            const float x      = r * std::cos(angle);
-            const float y      = r * std::sin(angle);
+            const float x = r * std::cos(angle);
+            const float y = r * std::sin(angle);
             Point p;
             p.x = x;
             p.y = y;
@@ -118,12 +124,12 @@ struct DistanceRay
     double angle;
 };
 
-double distance(const Point &point)
+double distance(const Point& point)
 {
     return std::sqrt(point.x * point.x + point.y * point.y);
 }
 
-Point find_nearest_point(const DistanceMap &map)
+Point find_nearest_point(const DistanceMap& map)
 {
     // TODO: clean up above types and this func
     std::optional<double> min_distance;
@@ -137,7 +143,7 @@ Point find_nearest_point(const DistanceMap &map)
         const auto d = distance(p);
         if (!min_distance.has_value() || d < min_distance.value())
         {
-            min_distance  = d;
+            min_distance = d;
             nearest_point = p;
         }
     }
@@ -154,7 +160,7 @@ public:
     struct Config
     {
         // QoS profile with queue size of 10
-        // TODO: is qos of 10 desireable?
+        // TODO: is qos of 10 desirable?
         rclcpp::QoS default_qos{10};
         std::string odom_topic;
         std::string scan_topic;
@@ -168,21 +174,16 @@ public:
         return c;
     }
 
-    WallFollower(const Config &config = default_config()) :
+    WallFollower(const Config& config = default_config()) :
         Node("wall_follower"),
-        odom_subscription_{create_subscription<nav_msgs::msg::Odometry>(
-            config.odom_topic, config.default_qos,
+        odom_subscription_{create_subscription<nav_msgs::msg::Odometry>(config.odom_topic,
+            config.default_qos,
             [this](nav_msgs::msg::Odometry::UniquePtr msg)
-            { last_pose_update_ = msg->pose.pose; }
-        )},
-        scan_subscription_{create_subscription<sensor_msgs::msg::LaserScan>(
-            config.scan_topic, config.default_qos,
-            [this](sensor_msgs::msg::LaserScan::UniquePtr msg)
-            { last_scan_update_ = *msg; }
-        )},
-        update_timer_{create_wall_timer(
-            std::chrono::milliseconds(5), [this] { update(); }
-        )}
+            { last_pose_update_ = msg->pose.pose; })},
+        scan_subscription_{create_subscription<sensor_msgs::msg::LaserScan>(config.scan_topic,
+            config.default_qos,
+            [this](sensor_msgs::msg::LaserScan::UniquePtr msg) { last_scan_update_ = *msg; })},
+        update_timer_{create_wall_timer(std::chrono::milliseconds(5), [this] { update(); })}
     {
     }
 
@@ -198,37 +199,28 @@ public:
             return;
         }
 
-        const auto &pose{last_pose_update_.value()};
+        const auto& pose{last_pose_update_.value()};
 
-        RCLCPP_INFO(
-            get_logger(),
-            "[update] pose='%s'",
-            to_string(pose).c_str()
-        );
-        const DistanceMap distance_map{
-            to_distance_map(last_scan_update_.value())
-        };
+        RCLCPP_INFO(get_logger(), "[update] pose='%s'", to_string(pose).c_str());
+        const DistanceMap distance_map{to_distance_map(last_scan_update_.value())};
 
         const Point nearest_point{find_nearest_point(distance_map)};
-        RCLCPP_INFO(
-            get_logger(),
+        RCLCPP_INFO(get_logger(),
             "[update] nearest_point={x: '%f', y: '%f'}",
             nearest_point.x,
-            nearest_point.y
-        );
+            nearest_point.y);
     }
 
 private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscription_;
-    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr
-        scan_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
     rclcpp::TimerBase::SharedPtr update_timer_;
     std::optional<geometry_msgs::msg::Pose> last_pose_update_;
     std::optional<sensor_msgs::msg::LaserScan> last_scan_update_;
 };
-}  // namespace turtlebot3
+} // namespace turtlebot3
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
     rclcpp::spin(std::make_shared<turtlebot3::WallFollower>());

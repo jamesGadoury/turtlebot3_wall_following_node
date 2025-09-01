@@ -1,4 +1,6 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "turtlebot3_wall_following_node/laser_detection.hpp"
+#include "turtlebot3_wall_following_node/point.hpp"
 
 #include <chrono>
 #include <memory>
@@ -6,130 +8,15 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/timer.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
-#include <sstream>
 #include <string>
 #include <tf2_msgs/msg/tf_message.hpp>
+
+using std::vector;
 
 namespace turtlebot3
 {
 
-std::string to_string(const geometry_msgs::msg::Pose& pose)
-{
-    std::stringstream ss;
-    ss << "{";
-    ss << "position: {";
-    ss << "x: " << pose.position.x << ", ";
-    ss << "y: " << pose.position.y << ", ";
-    ss << "z: " << pose.position.z;
-    ss << "},";
-    ss << "orientation: {";
-    ss << "x: " << pose.orientation.x << ", ";
-    ss << "y: " << pose.orientation.y << ", ";
-    ss << "z: " << pose.orientation.z << ", ";
-    ss << "w: " << pose.orientation.w;
-    ss << "}";
-    return ss.str();
-}
-
-std::string to_string(const nav_msgs::msg::Odometry& odom)
-{
-    std::stringstream ss;
-    ss << "{";
-    ss << "pose: {";
-    ss << "pose: {";
-    ss << to_string(odom.pose.pose);
-    ss << "}";
-    ss << "}";
-    ss << "}";
-    return ss.str();
-}
-
-struct Point
-{
-    float x;
-    float y;
-};
-
-struct DistanceMap
-{
-    // Metadata from LaserScan
-    double angle_min;       // start angle of the scan [rad]
-    double angle_max;       // end angle of the scan [rad]
-    double angle_increment; // angular distance between measurements [rad]
-    double range_min;       // minimum valid range [m]
-    double range_max;       // maximum valid range [m]
-
-    // Measured ranges (distance values, clipped by min/max)
-    std::vector<float> ranges;
-
-    // Precomputed (x,y) points in the robot's local frame
-    std::vector<Point> cartesian;
-
-    // Utility: number of beams
-    size_t size() const
-    {
-        return ranges.size();
-    }
-
-    // Utility: get angle for beam i
-    double angle(size_t i) const
-    {
-        return angle_min + i * angle_increment;
-    }
-};
-
-DistanceMap to_distance_map(const sensor_msgs::msg::LaserScan& msg)
-{
-    DistanceMap map;
-    map.angle_min = msg.angle_min;
-    map.angle_max = msg.angle_max;
-    map.angle_increment = msg.angle_increment;
-    map.range_min = msg.range_min;
-    map.range_max = msg.range_max;
-    map.ranges = msg.ranges;
-
-    // Precompute Cartesian coordinates (x, y) for each valid range
-    map.cartesian.reserve(msg.ranges.size());
-    for (size_t i = 0; i < msg.ranges.size(); ++i)
-    {
-        const float r = msg.ranges[i];
-        if (std::isfinite(r) && r >= msg.range_min && r <= msg.range_max)
-        {
-            const double angle = msg.angle_min + i * msg.angle_increment;
-            const float x = r * std::cos(angle);
-            const float y = r * std::sin(angle);
-            Point p;
-            p.x = x;
-            p.y = y;
-            map.cartesian.emplace_back(p);
-        }
-        else
-        {
-            // Use NaN or skip invalid values
-            Point p;
-            p.x = std::numeric_limits<float>::quiet_NaN();
-            p.y = std::numeric_limits<float>::quiet_NaN();
-            map.cartesian.emplace_back(p);
-        }
-    }
-
-    return map;
-}
-
-// TODO: Should we just populate this in above DistanceMap instead?
-//       Also, better name?
-struct DistanceRay
-{
-    double distance;
-    double angle;
-};
-
-double distance(const Point& point)
-{
-    return std::sqrt(point.x * point.x + point.y * point.y);
-}
-
-Point find_nearest_point(const DistanceMap& map)
+Point find_nearest_point(const vector<Point>& points)
 {
     // TODO: clean up above types and this func
     std::optional<double> min_distance;

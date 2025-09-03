@@ -8,6 +8,15 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_eigen REQUIRED)
+
 find_package(turtlebot3_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -24,6 +33,10 @@ target_include_directories(turtlebot3_wall_following_node PUBLIC
 target_compile_features(turtlebot3_wall_following_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(
   turtlebot3_wall_following_node
+  "tf2"
+  "tf2_ros"
+  "tf2_geometry_msgs"
+  "tf2_eigen"
   "turtlebot3_msgs"
   "sensor_msgs"
   "nav_msgs"

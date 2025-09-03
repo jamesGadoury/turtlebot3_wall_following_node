@@ -31,15 +31,25 @@ vector<LaserDetection> to_laser_detections(const sensor_msgs::msg::LaserScan& sc
     return detections;
 }
 
-visualization_msgs::msg::Marker to_marker(const LaserDetection& detection)
+// TODO: should make more specific (to_sphere_marker) and parameterize more
+visualization_msgs::msg::Marker to_marker(const Eigen::Isometry3d& transform)
 {
     visualization_msgs::msg::Marker m;
     m.header.frame_id = "odom"; // must exist in TF or match RViz Fixed Frame
     // m.header.stamp = node->now();
     // m.ns = "demo";
     m.id = 0;
-    m.pose.position.x = detection.x();
-    m.pose.position.y = detection.y();
+    m.pose.position.x = transform.translation().x();
+    m.pose.position.y = transform.translation().y();
+    m.pose.position.z = transform.translation().z();
+
+    Eigen::Quaterniond q(transform.rotation());
+    q.normalize();
+    m.pose.orientation.x = q.x();
+    m.pose.orientation.y = q.y();
+    m.pose.orientation.z = q.z();
+    m.pose.orientation.w = q.w();
+
     m.type = visualization_msgs::msg::Marker::SPHERE;
     m.action = visualization_msgs::msg::Marker::ADD;
     m.scale.x = 0.3; // meters

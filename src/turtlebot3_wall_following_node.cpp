@@ -2,23 +2,23 @@
 #include "turtlebot3_wall_following_node/laser_detection.hpp"
 #include "turtlebot3_wall_following_node/msg_utils.hpp"
 
-#include <chrono>
+#include <Eigen/Geometry>
 #include <memory>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/timer.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <string>
-
-using std::optional;
-using std::vector;
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_ros/buffer.hpp>
+#include <tf2_ros/transform_listener.hpp>
 
 namespace turtlebot3
 {
 
-LaserDetection find_nearest_detection(const vector<LaserDetection>& detections)
+LaserDetection find_nearest_detection(const std::vector<LaserDetection>& detections)
 {
-    optional<LaserDetection> nearest_detection;
+    std::optional<LaserDetection> nearest_detection;
     for (auto detection : detections)
     {
         if (!nearest_detection.has_value() ||
@@ -58,10 +58,8 @@ public:
 
     WallFollower(const Config& config = default_config()) :
         Node("wall_follower"),
-        odom_subscription_{create_subscription<nav_msgs::msg::Odometry>(config.odom_topic,
-            config.default_qos,
-            [this](nav_msgs::msg::Odometry::UniquePtr msg)
-            { last_pose_update_ = msg->pose.pose; })},
+        tf_buffer_{std::make_unique<tf2_ros::Buffer>(get_clock())},
+        tf_listener_{std::make_unique<tf2_ros::TransformListener>(*tf_buffer_, this, true)},
         scan_subscription_{create_subscription<sensor_msgs::msg::LaserScan>(config.scan_topic,
             config.default_qos,
             [this](sensor_msgs::msg::LaserScan::UniquePtr msg) { last_scan_update_ = *msg; })},
@@ -73,36 +71,49 @@ public:
 
     bool waiting_for_updates()
     {
-        return !last_pose_update_.has_value() || !last_scan_update_.has_value();
+        return !last_scan_update_.has_value();
     }
 
     void update()
     {
+        // TODO: should separate out the scan processing into a callback for the scan, rather than
+        //       always computing here, we still want this to update on its own, as we will want
+        //       to make the update rate higher for current node responsibilities
         if (waiting_for_updates())
         {
             return;
         }
 
-        const auto& pose{last_pose_update_.value()};
+        // TODO: parameterize
+        const std::string target_frame{"odom"};
+        const std::string source_frame{"base_footprint"};
+        auto ts = tf_buffer_->lookupTransform(target_frame, source_frame, tf2::TimePointZero);
+        auto transform = tf2::transformToEigen(ts.transform); // returns Isometry3d
 
-        RCLCPP_DEBUG(get_logger(), "[update] pose='%s'", to_string(pose).c_str());
-        const vector<LaserDetection> detections{to_laser_detections(last_scan_update_.value())};
+        const std::vector<LaserDetection> detections{
+            to_laser_detections(last_scan_update_.value())};
 
-        const LaserDetection nearest{find_nearest_detection(detections)};
+        const LaserDetection nearest_detection{find_nearest_detection(detections)};
+        const Eigen::Vector3d nearest_point(
+            transform * Eigen::Vector3d(static_cast<double>(nearest_detection.x()),
+                            static_cast<double>(nearest_detection.y()),
+                            0));
         RCLCPP_DEBUG(get_logger(),
             "[update] nearest_point={x: '%f', y: '%f'}",
-            nearest.x(),
-            nearest.y());
+            nearest_point.x(),
+            nearest_point.y());
 
-        marker_publisher_->publish(to_marker(nearest));
+        // TODO: should I just add a Vector3d overload?
+        marker_publisher_->publish(
+            to_marker(Eigen::Translation3d(nearest_point) * Eigen::Isometry3d::Identity()));
     }
 
 private:
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscription_;
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_publisher_;
     rclcpp::TimerBase::SharedPtr update_timer_;
-    std::optional<geometry_msgs::msg::Pose> last_pose_update_;
     std::optional<sensor_msgs::msg::LaserScan> last_scan_update_;
 };
 } // namespace turtlebot3

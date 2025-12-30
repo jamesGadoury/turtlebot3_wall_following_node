@@ -119,7 +119,6 @@ public:
             case WallFollowerState::ALIGNING_TO_WALL:
                 RCLCPP_INFO(get_logger(), "Alignment complete, transitioning to FOLLOWING_WALL");
                 current_state_ = WallFollowerState::FOLLOWING_WALL;
-                follow_controller_->reset();
                 break;
             case WallFollowerState::FOLLOWING_WALL:
                 // Right wall following runs indefinitely

@@ -23,7 +23,6 @@ public:
     RightWallFollowingController();
     explicit RightWallFollowingController(const Config& config);
 
-    void reset() override;
     ControlInput compute(const SystemResponse& input) override;
 
 private:

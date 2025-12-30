@@ -36,11 +36,6 @@ public:
     virtual ~ControllerInterface() = default;
 
     /**
-     * @brief Reset the controller state
-     */
-    virtual void reset() = 0;
-
-    /**
      * @brief Compute control output given current state
      * @param input Current sensor state
      * @return Control output with velocity command and completion status

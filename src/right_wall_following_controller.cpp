@@ -14,10 +14,6 @@ RightWallFollowingController::RightWallFollowingController(const Config& config)
 {
 }
 
-void RightWallFollowingController::reset()
-{
-}
-
 ControlInput RightWallFollowingController::compute(const SystemResponse& /*input*/)
 {
     ControlInput output;

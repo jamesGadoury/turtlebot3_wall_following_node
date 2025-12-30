@@ -14,10 +14,6 @@ AlignToNearestWallController::AlignToNearestWallController(const Config& config)
 {
 }
 
-void AlignToNearestWallController::reset()
-{
-}
-
 ControlInput AlignToNearestWallController::compute(const SystemResponse& /*input*/)
 {
     ControlInput output;

@@ -64,7 +64,8 @@ ControlInput AlignToNearestWallController::update(const SystemResponse& input)
     {
         // Step 4: Compute angle error and check for completion
         double angle_to_target = target_point_->angle;
-
+        
+        /// TODO: is this correct?
         // Normalize angle to [-π, π] for error calculation
         // If angle > π, it's on the "right" side, so convert to negative
         if (angle_to_target > M_PI)

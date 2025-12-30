@@ -91,10 +91,10 @@ public:
         switch (current_state_)
         {
             case WallFollowerState::ALIGNING_TO_WALL:
-                output = align_controller_->compute(input);
+                output = align_controller_->update(input);
                 break;
             case WallFollowerState::FOLLOWING_WALL:
-                output = follow_controller_->compute(input);
+                output = follow_controller_->update(input);
                 break;
         }
 

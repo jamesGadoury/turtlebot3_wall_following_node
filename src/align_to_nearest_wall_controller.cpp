@@ -14,7 +14,7 @@ AlignToNearestWallController::AlignToNearestWallController(const Config& config)
 {
 }
 
-ControlInput AlignToNearestWallController::compute(const SystemResponse& /*input*/)
+ControlInput AlignToNearestWallController::update(const SystemResponse& /*input*/)
 {
     ControlInput output;
     return output;

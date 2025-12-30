@@ -14,7 +14,7 @@ RightWallFollowingController::RightWallFollowingController(const Config& config)
 {
 }
 
-ControlInput RightWallFollowingController::compute(const SystemResponse& /*input*/)
+ControlInput RightWallFollowingController::update(const SystemResponse& /*input*/)
 {
     ControlInput output;
     return output;

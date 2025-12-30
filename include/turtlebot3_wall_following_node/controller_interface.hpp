@@ -40,7 +40,7 @@ public:
      * @param input Current sensor state
      * @return Control output with velocity command and completion status
      */
-    virtual ControlInput compute(const SystemResponse& input) = 0;
+    virtual ControlInput update(const SystemResponse& input) = 0;
 };
 
 } // namespace turtlebot3

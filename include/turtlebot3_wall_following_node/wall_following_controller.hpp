@@ -27,7 +27,7 @@ public:
         double sweep_center_angle{-M_PI / 4.0};
 
         // Total sweep angle range for finding nearest point (rad)
-        double sweep_angle_range{M_PI / 2.0};
+        double sweep_angle_range{M_PI / 4.0};
 
         // Minimum distance to consider a wall point (m)
         double min_wall_distance{0.5};

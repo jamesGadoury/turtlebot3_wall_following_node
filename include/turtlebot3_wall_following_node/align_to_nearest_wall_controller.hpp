@@ -32,7 +32,7 @@ public:
         double sweep_angle_range{M_PI / 2.0};  // +/- 45 degrees from center
 
         // Minimum distance to consider a wall point (m)
-        double min_wall_distance{0.5};
+        double min_wall_distance{0.3};
 
         // Angular speed for rotation (rad/s)
         double angular_speed{0.1};

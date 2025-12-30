@@ -31,20 +31,25 @@ ControlInput AlignToNearestWallController::update(const SystemResponse& input)
     output.is_complete = false;
 
     // Step 1: Find nearest point in sweep angle range
+    // The sweep range is centered around 0 (forward x axis of robot), wrapping around 2π
+    const double half_sweep = config_.sweep_angle_range / 2.0;
+    const double upper_bound = half_sweep;  // [0, half_sweep]
+    const double lower_bound = 2.0 * M_PI - half_sweep;  // [2π - half_sweep, 2π]
+
     const LaserDetection* nearest = nullptr;
     float min_distance = std::numeric_limits<float>::max();
 
     for (const auto& detection : input.detections)
     {
         // Check if detection is within sweep angle range
-        if (detection.angle >= config_.sweep_angle_min &&
-            detection.angle <= config_.sweep_angle_max)
+        // Either in [0, upper_bound] or [lower_bound, 2π]
+        const bool in_range = (detection.angle <= upper_bound) ||
+                             (detection.angle >= lower_bound);
+
+        if (in_range && detection.distance < min_distance)
         {
-            if (detection.distance < min_distance)
-            {
-                min_distance = detection.distance;
-                nearest = &detection;
-            }
+            min_distance = detection.distance;
+            nearest = &detection;
         }
     }
 
@@ -58,7 +63,15 @@ ControlInput AlignToNearestWallController::update(const SystemResponse& input)
     if (target_point_.has_value())
     {
         // Step 4: Compute angle error and check for completion
-        const double angle_to_target = target_point_->angle;
+        double angle_to_target = target_point_->angle;
+
+        // Normalize angle to [-π, π] for error calculation
+        // If angle > π, it's on the "right" side, so convert to negative
+        if (angle_to_target > M_PI)
+        {
+            angle_to_target -= 2.0 * M_PI;
+        }
+
         const double angle_error = angle_to_target - config_.angle_setpoint;
 
         // Check if aligned within tolerance

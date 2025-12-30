@@ -20,24 +20,25 @@ class AlignToNearestWallController : public ControllerInterface
 public:
     struct Config
     {
-        // Sweep angle range for finding nearest point (rad)
-        double sweep_angle_min = -M_PI / 2;  // -90 degrees
-        double sweep_angle_max = M_PI / 2;   // +90 degrees
+        // Total sweep angle range for finding nearest point (rad)
+        // This range is centered around 0 (forward), wrapping around 2π
+        // E.g., π means look from [0, π/2] and [2π - π/2, 2π]
+        double sweep_angle_range{M_PI / 2.0};  // +/- 45 degrees from forward x axis
 
         // Minimum distance to consider a wall point (m)
-        double min_wall_distance = 0.5;
+        double min_wall_distance{0.5};
 
         // Angular speed for rotation (rad/s)
-        double angular_speed = 0.5;
+        double angular_speed{0.1};
 
         // Forward speed when no target locked (m/s)
-        double forward_speed = 0.1;
+        double forward_speed{0.1};
 
-        // Target angle to align to (rad, 0 = straight ahead)
-        double angle_setpoint = 0.0;
+        // Target angle to align to (rad, 0 = straight ahead, -90 degrees = along -y axis)
+        double angle_setpoint{-M_PI};
 
         // Tolerance for alignment completion (rad)
-        double wall_alignment_tolerance = 0.05;
+        double wall_alignment_tolerance{0.1};
     };
 
     AlignToNearestWallController();

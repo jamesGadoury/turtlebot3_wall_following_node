@@ -2,7 +2,7 @@
 #include "turtlebot3_wall_following_node/controller_interface.hpp"
 #include "turtlebot3_wall_following_node/laser_detection.hpp"
 #include "turtlebot3_wall_following_node/msg_utils.hpp"
-#include "turtlebot3_wall_following_node/right_wall_following_controller.hpp"
+#include "turtlebot3_wall_following_node/wall_following_controller.hpp"
 
 #include <Eigen/Geometry>
 #include <chrono>
@@ -59,7 +59,8 @@ public:
         current_state_{WallFollowerState::ALIGNING_TO_WALL},
         align_controller_{std::make_unique<AlignToNearestWallController>(
             get_logger(), tf_broadcaster_)},
-        follow_controller_{std::make_unique<RightWallFollowingController>()}
+        follow_controller_{std::make_unique<WallFollowingController>(
+            get_logger(), tf_broadcaster_)}
     {
         RCLCPP_INFO(get_logger(), "WallFollower initialized in ALIGNING_TO_WALL state");
     }
@@ -192,7 +193,7 @@ private:
     // State machine
     WallFollowerState current_state_;
     std::unique_ptr<AlignToNearestWallController> align_controller_;
-    std::unique_ptr<RightWallFollowingController> follow_controller_;
+    std::unique_ptr<WallFollowingController> follow_controller_;
 };
 
 } // namespace turtlebot3

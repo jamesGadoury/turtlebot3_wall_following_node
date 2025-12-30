@@ -1,4 +1,4 @@
-#include "turtlebot3_wall_following_node/align_to_nearest_wall_controller.hpp"
+#include "turtlebot3_wall_following_node/wall_following_controller.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,14 +9,14 @@
 namespace turtlebot3
 {
 
-AlignToNearestWallController::AlignToNearestWallController(
+WallFollowingController::WallFollowingController(
     rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
-    AlignToNearestWallController(Config{}, logger, tf_broadcaster)
+    WallFollowingController(Config{}, logger, tf_broadcaster)
 {
 }
 
-AlignToNearestWallController::AlignToNearestWallController(
+WallFollowingController::WallFollowingController(
     const Config& config,
     rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
@@ -27,12 +27,12 @@ AlignToNearestWallController::AlignToNearestWallController(
 {
 }
 
-void AlignToNearestWallController::reset()
+void WallFollowingController::reset()
 {
     target_point_odom_.reset();
 }
 
-void AlignToNearestWallController::find_and_set_target_point(
+void WallFollowingController::find_and_update_target_point(
     const std::vector<LaserDetection>& detections,
     const Eigen::Isometry3d& pose)
 {
@@ -80,36 +80,32 @@ void AlignToNearestWallController::find_and_set_target_point(
         }
     }
 
-    // If nearest point is within min_wall_distance, transform to odom and set target_point_odom_
+    // If nearest point is within min_wall_distance, transform to odom and update target_point_odom_
     if (nearest && nearest->distance <= config_.min_wall_distance)
     {
-        // Transform from base_footprint to odom
         Eigen::Vector3d target_in_base(nearest->x(), nearest->y(), 0.0);
         target_point_odom_ = pose * target_in_base;
     }
 }
 
-ControlInput AlignToNearestWallController::update(const SystemResponse& input)
+ControlInput WallFollowingController::update(const SystemResponse& input)
 {
     ControlInput output;
     output.cmd_vel.linear.x = 0.0;
     output.cmd_vel.angular.z = 0.0;
     output.is_complete = false;
 
-    // Step 1: Find and set target point only if not already set
-    if (!target_point_odom_.has_value())
-    {
-        find_and_set_target_point(input.detections, input.pose);
-    }
+    // Step 1: Find and update target point every time
+    find_and_update_target_point(input.detections, input.pose);
 
-    // Step 2: If target_point_odom_ is set, rotate; otherwise move forward
+    // Step 2: If target_point_odom_ is set, move forward and adjust heading
     if (target_point_odom_.has_value())
     {
         // Broadcast TF for target point in odom frame
         geometry_msgs::msg::TransformStamped transform_stamped;
         transform_stamped.header.stamp = input.timestamp;
         transform_stamped.header.frame_id = "odom";
-        transform_stamped.child_frame_id = "align_target_point";
+        transform_stamped.child_frame_id = "wall_follow_target_point";
         transform_stamped.transform.translation.x = target_point_odom_->x();
         transform_stamped.transform.translation.y = target_point_odom_->y();
         transform_stamped.transform.translation.z = target_point_odom_->z();
@@ -142,23 +138,19 @@ ControlInput AlignToNearestWallController::update(const SystemResponse& input)
         // Log current angle and error
         rclcpp::Clock steady_clock(RCL_STEADY_TIME);
         RCLCPP_INFO_THROTTLE(logger_, steady_clock, 500,
-            "AlignToNearestWall: angle_to_target=%.3f rad (%.1f°), error=%.3f rad (%.1f°)",
+            "WallFollowing: angle_to_target=%.3f rad (%.1f°), error=%.3f rad (%.1f°)",
             angle_to_target_odom - robot_yaw, (angle_to_target_odom - robot_yaw) * 180.0 / M_PI,
             angle_error, angle_error * 180.0 / M_PI);
 
-        // Check if aligned within tolerance
-        if (std::abs(angle_error) < config_.wall_alignment_tolerance)
-        {
-            output.is_complete = true;
-            return output;
-        }
+        // Move forward
+        output.cmd_vel.linear.x = std::clamp(
+            config_.forward_speed,
+            0.0,
+            robot_params_.max_linear_velocity
+        );
 
-        // Rotate towards target
-        // If angle_error > 0, target is to the left, rotate left (positive angular velocity)
-        // If angle_error < 0, target is to the right, rotate right (negative angular velocity)
-        const double angular_velocity = (angle_error > 0) ?
-            config_.angular_speed : -config_.angular_speed;
-
+        // Apply proportional control for angular velocity
+        double angular_velocity = config_.angle_kp * angle_error;
         output.cmd_vel.angular.z = std::clamp(
             angular_velocity,
             -robot_params_.max_angular_velocity,
@@ -167,12 +159,9 @@ ControlInput AlignToNearestWallController::update(const SystemResponse& input)
     }
     else
     {
-        // No target locked, move forward
-        output.cmd_vel.linear.x = std::clamp(
-            config_.forward_speed,
-            0.0,
-            robot_params_.max_linear_velocity
-        );
+        // No target found, stop
+        output.cmd_vel.linear.x = 0.0;
+        output.cmd_vel.angular.z = 0.0;
     }
 
     return output;

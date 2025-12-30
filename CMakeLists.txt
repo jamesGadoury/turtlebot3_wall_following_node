@@ -27,7 +27,7 @@ set(SOURCES
   src/msg_utils.cpp
   src/turtlebot3_params.cpp
   src/align_to_nearest_wall_controller.cpp
-  src/right_wall_following_controller.cpp
+  src/wall_following_controller.cpp
 )
 set(LIBRARY spiral_turtlebot3_library)
 add_library(${LIBRARY} STATIC ${SOURCES})

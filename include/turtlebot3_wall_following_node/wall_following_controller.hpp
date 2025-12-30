@@ -13,23 +13,21 @@ namespace turtlebot3
 {
 
 /**
- * @brief Controller that aligns the robot to face the nearest wall
+ * @brief Controller that follows a wall
  *
- * This controller rotates the robot until the nearest detected point
- * is directly in front of the robot (within tolerance), then signals completion.
+ * This controller continuously tracks the nearest wall point and maintains
+ * alignment while moving forward.
  */
-class AlignToNearestWallController : public ControllerInterface
+class WallFollowingController : public ControllerInterface
 {
 public:
     struct Config
     {
         // Center angle for sweep range (rad, 0 = forward, -π/2 = right side)
-        double sweep_center_angle{0.0};
+        double sweep_center_angle{-M_PI / 4.0};
 
         // Total sweep angle range for finding nearest point (rad)
-        // This range is centered around sweep_center_angle, wrapping around 2π
-        // E.g., π means ±90 degrees from center angle
-        double sweep_angle_range{M_PI / 2.0};  // +/- 45 degrees from center
+        double sweep_angle_range{M_PI / 2.0};
 
         // Minimum distance to consider a wall point (m)
         double min_wall_distance{0.5};
@@ -37,21 +35,21 @@ public:
         // Angular speed for rotation (rad/s)
         double angular_speed{0.1};
 
-        // Forward speed when no target locked (m/s)
+        // Forward speed (m/s)
         double forward_speed{0.1};
 
-        // Target angle to align to (rad, 0 = straight ahead, -90 degrees = along -y axis)
+        // Target angle to maintain to wall (rad, -90 degrees = along -y axis)
         double angle_setpoint{-M_PI / 2.0};
 
-        // Tolerance for alignment completion (rad)
-        double wall_alignment_tolerance{0.1};
+        // Proportional gain for angle correction
+        double angle_kp{1.0};
     };
 
-    AlignToNearestWallController(
+    WallFollowingController(
         rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
-    AlignToNearestWallController(
+    WallFollowingController(
         const Config& config,
         rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
@@ -66,8 +64,8 @@ private:
     rclcpp::Logger logger_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-    void find_and_set_target_point(const std::vector<LaserDetection>& detections,
-                                    const Eigen::Isometry3d& pose);
+    void find_and_update_target_point(const std::vector<LaserDetection>& detections,
+                                       const Eigen::Isometry3d& pose);
 };
 
 } // namespace turtlebot3

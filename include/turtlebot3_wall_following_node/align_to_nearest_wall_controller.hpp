@@ -38,7 +38,7 @@ public:
         double forward_speed{0.1};
 
         // Target angle to align to (rad, 0 = straight ahead, -90 degrees = along -y axis)
-        double angle_setpoint{-M_PI};
+        double angle_setpoint{-M_PI / 2.0};
 
         // Tolerance for alignment completion (rad)
         double wall_alignment_tolerance{0.1};

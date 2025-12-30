@@ -149,8 +149,17 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
             robot_params_.max_linear_velocity
         );
 
-        // Apply proportional control for angular velocity
-        double angular_velocity = config_.angle_kp * angle_error;
+        // Apply bang-bang control for angular velocity (same as AlignToNearestWallController)
+        // If angle_error > tolerance, rotate towards target
+        // If angle_error < -tolerance, rotate away from target
+        // If within tolerance, no rotation
+        double angular_velocity = 0.0;
+        if (std::abs(angle_error) > config_.wall_alignment_tolerance)
+        {
+            angular_velocity = (angle_error > 0) ?
+                config_.angular_speed : -config_.angular_speed;
+        }
+
         output.cmd_vel.angular.z = std::clamp(
             angular_velocity,
             -robot_params_.max_angular_velocity,

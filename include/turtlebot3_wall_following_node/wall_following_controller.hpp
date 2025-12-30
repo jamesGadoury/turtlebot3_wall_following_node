@@ -24,10 +24,10 @@ public:
     struct Config
     {
         // Center angle for sweep range (rad, 0 = forward, -π/2 = right side)
-        double sweep_center_angle{-M_PI / 4.0};
+        double sweep_center_angle{-M_PI / 2.0};
 
         // Total sweep angle range for finding nearest point (rad)
-        double sweep_angle_range{M_PI / 4.0};
+        double sweep_angle_range{M_PI};
 
         // Minimum distance to consider a wall point (m)
         double min_wall_distance{0.5};
@@ -41,8 +41,8 @@ public:
         // Target angle to maintain to wall (rad, -90 degrees = along -y axis)
         double angle_setpoint{-M_PI / 2.0};
 
-        // Proportional gain for angle correction
-        double angle_kp{1.0};
+        // Tolerance for angle alignment (rad)
+        double wall_alignment_tolerance{0.1};
     };
 
     WallFollowingController(

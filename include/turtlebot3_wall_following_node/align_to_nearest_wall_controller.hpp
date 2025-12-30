@@ -4,7 +4,10 @@
 #include "turtlebot3_wall_following_node/turtlebot3_params.hpp"
 
 #include <cmath>
+#include <memory>
 #include <optional>
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/transform_broadcaster.hpp>
 
 namespace turtlebot3
 {
@@ -41,8 +44,14 @@ public:
         double wall_alignment_tolerance{0.1};
     };
 
-    AlignToNearestWallController();
-    explicit AlignToNearestWallController(const Config& config);
+    AlignToNearestWallController(
+        rclcpp::Logger logger,
+        std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
+
+    AlignToNearestWallController(
+        const Config& config,
+        rclcpp::Logger logger,
+        std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
     void reset();
     ControlInput update(const SystemResponse& input) override;
@@ -50,7 +59,12 @@ public:
 private:
     Config config_;
     Turtlebot3Params robot_params_;
-    std::optional<LaserDetection> target_point_;
+    std::optional<Eigen::Vector3d> target_point_odom_;
+    rclcpp::Logger logger_;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+    void find_and_set_target_point(const std::vector<LaserDetection>& detections,
+                                    const Eigen::Isometry3d& pose);
 };
 
 } // namespace turtlebot3

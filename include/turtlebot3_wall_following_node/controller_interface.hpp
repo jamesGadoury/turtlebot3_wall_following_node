@@ -4,6 +4,7 @@
 
 #include <Eigen/Geometry>
 #include <geometry_msgs/msg/twist.hpp>
+#include <rclcpp/time.hpp>
 #include <vector>
 
 namespace turtlebot3
@@ -23,6 +24,7 @@ struct ControlInput
  */
 struct SystemResponse
 {
+    rclcpp::Time timestamp;
     Eigen::Isometry3d pose;
     std::vector<LaserDetection> detections;
 };

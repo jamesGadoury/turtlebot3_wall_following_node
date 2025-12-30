@@ -49,7 +49,7 @@ public:
         Node("wall_follower"),
         tf_buffer_{std::make_unique<tf2_ros::Buffer>(get_clock())},
         tf_listener_{std::make_unique<tf2_ros::TransformListener>(*tf_buffer_, this, true)},
-        tf_broadcaster_{std::make_unique<tf2_ros::TransformBroadcaster>(this)},
+        tf_broadcaster_{std::make_shared<tf2_ros::TransformBroadcaster>(this)},
         scan_subscription_{create_subscription<sensor_msgs::msg::LaserScan>(config.scan_topic,
             config.default_qos,
             [this](sensor_msgs::msg::LaserScan::SharedPtr msg) { handle_laser_scan(msg); })},
@@ -57,7 +57,8 @@ public:
             config.default_qos)},
         time_since_startup_{std::chrono::steady_clock::now()},
         current_state_{WallFollowerState::ALIGNING_TO_WALL},
-        align_controller_{std::make_unique<AlignToNearestWallController>()},
+        align_controller_{std::make_unique<AlignToNearestWallController>(
+            get_logger(), tf_broadcaster_)},
         follow_controller_{std::make_unique<RightWallFollowingController>()}
     {
         RCLCPP_INFO(get_logger(), "WallFollower initialized in ALIGNING_TO_WALL state");
@@ -83,6 +84,7 @@ public:
     void handle_motion()
     {
         SystemResponse input;
+        input.timestamp = latest_scan_time_;
         input.pose = pose_;
         input.detections = detections_;
 
@@ -177,7 +179,7 @@ public:
 private:
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
-    std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription_;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_publisher_;
     std::chrono::steady_clock::time_point time_since_startup_;

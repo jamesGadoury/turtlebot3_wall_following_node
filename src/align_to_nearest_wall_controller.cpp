@@ -18,9 +18,9 @@ void AlignToNearestWallController::reset()
 {
 }
 
-ControllerOutput AlignToNearestWallController::compute(const ControllerInput& /*input*/)
+ControlInput AlignToNearestWallController::compute(const SystemResponse& /*input*/)
 {
-    ControllerOutput output;
+    ControlInput output;
     return output;
 }
 

@@ -18,9 +18,9 @@ void RightWallFollowingController::reset()
 {
 }
 
-ControllerOutput RightWallFollowingController::compute(const ControllerInput& /*input*/)
+ControlInput RightWallFollowingController::compute(const SystemResponse& /*input*/)
 {
-    ControllerOutput output;
+    ControlInput output;
     return output;
 }
 

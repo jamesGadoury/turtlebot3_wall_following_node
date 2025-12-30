@@ -23,7 +23,7 @@ public:
     explicit AlignToNearestWallController(const Config& config);
 
     void reset() override;
-    ControllerOutput compute(const ControllerInput& input) override;
+    ControlInput compute(const SystemResponse& input) override;
 
 private:
     Config config_;

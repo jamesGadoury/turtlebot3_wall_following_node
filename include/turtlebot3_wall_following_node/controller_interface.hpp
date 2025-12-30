@@ -12,7 +12,7 @@ namespace turtlebot3
 /**
  * @brief Output command from a controller
  */
-struct ControllerOutput
+struct ControlInput
 {
     geometry_msgs::msg::Twist cmd_vel;
     bool is_complete{false};
@@ -21,7 +21,7 @@ struct ControllerOutput
 /**
  * @brief Input state for controllers
  */
-struct ControllerInput
+struct SystemResponse
 {
     Eigen::Isometry3d pose;
     std::vector<LaserDetection> detections;
@@ -45,7 +45,7 @@ public:
      * @param input Current sensor state
      * @return Control output with velocity command and completion status
      */
-    virtual ControllerOutput compute(const ControllerInput& input) = 0;
+    virtual ControlInput compute(const SystemResponse& input) = 0;
 };
 
 } // namespace turtlebot3

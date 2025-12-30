@@ -82,11 +82,11 @@ public:
 
     void handle_motion()
     {
-        ControllerInput input;
+        SystemResponse input;
         input.pose = pose_;
         input.detections = detections_;
 
-        ControllerOutput output;
+        ControlInput output;
 
         switch (current_state_)
         {

@@ -1,4 +1,3 @@
-#include "turtlebot3_wall_following_node/align_to_nearest_wall_controller.hpp"
 #include "turtlebot3_wall_following_node/controller_interface.hpp"
 #include "turtlebot3_wall_following_node/laser_detection.hpp"
 #include "turtlebot3_wall_following_node/msg_utils.hpp"
@@ -56,17 +55,47 @@ public:
         cmd_vel_publisher_{create_publisher<geometry_msgs::msg::TwistStamped>(config.cmd_vel_topic,
             config.default_qos)},
         time_since_startup_{std::chrono::steady_clock::now()},
-        current_state_{WallFollowerState::ALIGNING_TO_WALL},
-        align_controller_{std::make_unique<AlignToNearestWallController>(
-            get_logger(), tf_broadcaster_)},
-        follow_controller_{std::make_unique<WallFollowingController>(
-            get_logger(), tf_broadcaster_)}
+        current_state_{WallFollowerState::ALIGNING_TO_WALL}
     {
+        /// TODO: fix initialization
+        // Create alignment controller (one-shot mode)
+        {
+            WallFollowingController::Config config;
+            config.continuous = false;
+            config.sweep_center_angle = 0.0;
+            config.sweep_angle_range = 0.524; // roughly 30 degrees
+            config.min_wall_distance = 0.3;
+            config.max_detection_range = 3.5;
+            config.angular_speed = 0.2;
+            config.forward_speed = 0.05;
+            config.angle_setpoint = -M_PI / 2.0;
+            config.wall_alignment_tolerance = 0.2;
+            align_controller_ = std::make_unique<WallFollowingController>(
+                config, get_logger(), tf_broadcaster_);
+        }
+
+        // Create wall following controller (continuous mode)
+        {
+            WallFollowingController::Config config;
+            config.continuous = true;
+            config.sweep_center_angle = 3 * M_PI / 2.0 + M_PI / 4.0;
+            config.sweep_angle_range = M_PI / 2.0;
+            config.min_wall_distance = 0.3;
+            config.max_detection_range = 1.5;
+            config.angular_speed = 0.2;
+            config.forward_speed = 0.05;
+            config.angle_setpoint = -M_PI / 2.0;
+            config.wall_alignment_tolerance = 0.2;
+            follow_controller_ = std::make_unique<WallFollowingController>(
+                config, get_logger(), tf_broadcaster_);
+        }
+
         RCLCPP_INFO(get_logger(), "WallFollower initialized in ALIGNING_TO_WALL state");
     }
 
     void handle_laser_scan(sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
+        /// TODO: remove this indirection, just handle the update here and don't track.
         latest_scan_msg_ = msg;
         latest_scan_time_ = rclcpp::Time(msg->header.stamp, get_clock()->get_clock_type());
         update();
@@ -131,9 +160,13 @@ public:
 
     void update()
     {
+        /// TODO: a lot of this logic is pointless now that we move to only update on new scans
+        /// don't need to track scan time, can get the latest message, do not need to check
+        /// if we have message or track it, etc
         if (!latest_scan_msg_)
         {
-            RCLCPP_DEBUG(get_logger(), "No scan data received yet");
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "No scan data received yet");
             return;
         }
 
@@ -168,13 +201,11 @@ public:
 
         detections_ = to_laser_detections(*latest_scan_msg_);
 
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+            "Update: scan_ranges=%zu, detections=%zu, state=%d",
+            latest_scan_msg_->ranges.size(), detections_.size(), static_cast<int>(current_state_));
+
         handle_motion();
-
-        publish_visualizations();
-    }
-
-    void publish_visualizations()
-    {
     }
 
 private:
@@ -192,7 +223,7 @@ private:
 
     // State machine
     WallFollowerState current_state_;
-    std::unique_ptr<AlignToNearestWallController> align_controller_;
+    std::unique_ptr<WallFollowingController> align_controller_;
     std::unique_ptr<WallFollowingController> follow_controller_;
 };
 

@@ -46,6 +46,7 @@ endif()
 set(SOURCES
   src/msg_utils.cpp
   src/turtlebot3_params.cpp
+  src/heading_controller.cpp
   src/target_point_finder.cpp
   src/align_to_wall_controller.cpp
   src/wall_following_controller.cpp

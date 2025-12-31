@@ -22,6 +22,7 @@ AlignToWallController::AlignToWallController(const Params& params,
     params_{params},
     robot_params_{get_turtlebot3_params()},
     target_finder_{params.finder_params, logger},
+    heading_controller_{params.heading_params},
     logger_{logger},
     tf_broadcaster_{tf_broadcaster}
 {
@@ -86,14 +87,11 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
         double distance_to_target = direction_to_target.norm();
         double angle_to_target_odom = std::atan2(direction_to_target.y(), direction_to_target.x());
 
-        // Compute angle error in robot frame
-        double angle_error = angle_to_target_odom - robot_yaw - params_.angle_setpoint;
+        // Compute target heading: angle to target plus desired offset
+        double target_heading = angle_to_target_odom - params_.angle_setpoint;
 
-        // Normalize angle_error to [-π, π]
-        while (angle_error > M_PI)
-            angle_error -= 2.0 * M_PI;
-        while (angle_error < -M_PI)
-            angle_error += 2.0 * M_PI;
+        // Compute heading error using heading controller
+        double heading_error = HeadingController::normalize_angle(target_heading - robot_yaw);
 
         // Compute distance error (positive when too far, negative when too close)
         double distance_error = distance_to_target - params_.finder_params.min_wall_distance;
@@ -112,12 +110,12 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             steady_clock,
             500,
             "=== ERRORS === distance_error=%.3f m (target=%.3f, actual=%.3f), "
-            "angle_error=%.3f rad (%.1f°), within_min_dist=%d, reached_min=%d, phase=%s",
+            "heading_error=%.3f rad (%.1f°), within_min_dist=%d, reached_min=%d, phase=%s",
             distance_error,
             params_.finder_params.min_wall_distance,
             distance_to_target,
-            angle_error,
-            angle_error * 180.0 / M_PI,
+            heading_error,
+            heading_error * 180.0 / M_PI,
             within_min_distance,
             reached_min_distance_,
             !reached_min_distance_ ? "APPROACH" : "ALIGN");
@@ -142,7 +140,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             // Phase 2: Rotate - stop forward motion, only rotate to align
             output.cmd_vel.linear.x = 0.0;
 
-            if (std::abs(angle_error) < params_.wall_alignment_tolerance)
+            if (heading_controller_.is_aligned(robot_yaw, target_heading))
             {
                 // Alignment complete
                 output.is_complete = true;
@@ -151,11 +149,9 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             }
             else
             {
-                // Apply rotation
-                double angular_velocity =
-                    (angle_error > 0) ? params_.angular_speed : -params_.angular_speed;
-                output.cmd_vel.angular.z = std::clamp(angular_velocity,
-                    -robot_params_.max_angular_velocity,
+                // Apply rotation using heading controller
+                output.cmd_vel.angular.z = heading_controller_.compute_angular_velocity(robot_yaw,
+                    target_heading,
                     robot_params_.max_angular_velocity);
             }
         }

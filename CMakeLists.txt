@@ -26,7 +26,6 @@ find_package(rosbag2_cpp REQUIRED)
 set(SOURCES
   src/msg_utils.cpp
   src/turtlebot3_params.cpp
-  src/align_to_nearest_wall_controller.cpp
   src/wall_following_controller.cpp
 )
 set(LIBRARY spiral_turtlebot3_library)

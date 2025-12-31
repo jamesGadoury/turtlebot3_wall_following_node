@@ -29,36 +29,4 @@ vector<LaserDetection> to_laser_detections(const sensor_msgs::msg::LaserScan& sc
 
     return detections;
 }
-
-string to_string(const geometry_msgs::msg::Pose& pose)
-{
-    std::stringstream ss;
-    ss << "{";
-    ss << "position: {";
-    ss << "x: " << pose.position.x << ", ";
-    ss << "y: " << pose.position.y << ", ";
-    ss << "z: " << pose.position.z;
-    ss << "},";
-    ss << "orientation: {";
-    ss << "x: " << pose.orientation.x << ", ";
-    ss << "y: " << pose.orientation.y << ", ";
-    ss << "z: " << pose.orientation.z << ", ";
-    ss << "w: " << pose.orientation.w;
-    ss << "}";
-    return ss.str();
-}
-
-string to_string(const nav_msgs::msg::Odometry& odom)
-{
-    std::stringstream ss;
-    ss << "{";
-    ss << "pose: {";
-    ss << "pose: {";
-    ss << to_string(odom.pose.pose);
-    ss << "}";
-    ss << "}";
-    ss << "}";
-    return ss.str();
-}
-
 } // namespace turtlebot3

@@ -12,8 +12,4 @@ namespace turtlebot3
 
 std::vector<LaserDetection> to_laser_detections(const sensor_msgs::msg::LaserScan& scan);
 
-std::string to_string(const geometry_msgs::msg::Pose& pose);
-
-std::string to_string(const nav_msgs::msg::Odometry& odom);
-
 } // namespace turtlebot3

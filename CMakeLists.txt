@@ -23,6 +23,26 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 
+# Find all C++ source and header files
+file(GLOB_RECURSE ALL_CXX_SOURCE_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/*.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+)
+
+# Create a format target that runs automatically
+find_program(CLANG_FORMAT "clang-format")
+if(CLANG_FORMAT)
+  add_custom_target(
+    format_code ALL
+    COMMAND ${CLANG_FORMAT} -i ${ALL_CXX_SOURCE_FILES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running clang-format on all source files"
+  )
+endif()
+
 set(SOURCES
   src/msg_utils.cpp
   src/turtlebot3_params.cpp
@@ -30,6 +50,11 @@ set(SOURCES
 )
 set(LIBRARY spiral_turtlebot3_library)
 add_library(${LIBRARY} STATIC ${SOURCES})
+
+# Ensure formatting happens before library compilation
+if(CLANG_FORMAT)
+  add_dependencies(${LIBRARY} format_code)
+endif()
 
 target_include_directories(${LIBRARY} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

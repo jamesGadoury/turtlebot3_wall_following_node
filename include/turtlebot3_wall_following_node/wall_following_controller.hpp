@@ -29,10 +29,12 @@ public:
         // Continuous mode: true = continuous wall following, false = align once and complete
         bool continuous{true};
 
-        // Minimum sweep angle for finding nearest point (rad, 0 = forward, π/2 = left, -π/2 = right)
+        // Minimum sweep angle for finding nearest point (rad, 0 = forward, π/2 = left, -π/2 =
+        // right)
         double min_sweep_angle{-M_PI};
 
-        // Maximum sweep angle for finding nearest point (rad, 0 = forward, π/2 = left, -π/2 = right)
+        // Maximum sweep angle for finding nearest point (rad, 0 = forward, π/2 = left, -π/2 =
+        // right)
         double max_sweep_angle{0.0};
 
         // Target distance to wall - start aligning when closer than this (m)
@@ -54,12 +56,10 @@ public:
         double wall_alignment_tolerance{0.1};
     };
 
-    WallFollowingController(
-        rclcpp::Logger logger,
+    WallFollowingController(rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
-    WallFollowingController(
-        const Config& config,
+    WallFollowingController(const Config& config,
         rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
@@ -69,13 +69,13 @@ public:
 private:
     Config config_;
     Turtlebot3Params robot_params_;
-    bool reached_min_distance_{false};  // For one-shot mode: true when within min_wall_distance
+    bool reached_min_distance_{false}; // For one-shot mode: true when within min_wall_distance
     std::optional<Eigen::Isometry3d> target_point_odom_;
     rclcpp::Logger logger_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     void find_and_update_target_point(const std::vector<LaserDetection>& detections,
-                                       const Eigen::Isometry3d& pose);
+        const Eigen::Isometry3d& pose);
 };
 
 } // namespace turtlebot3

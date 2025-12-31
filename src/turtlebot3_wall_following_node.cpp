@@ -61,32 +61,32 @@ public:
         {
             WallFollowingController::Config config;
             config.continuous = false;
-            config.min_sweep_angle = -0.262;  // -15° from forward
-            config.max_sweep_angle = 0.262;   // +15° from forward
+            config.min_sweep_angle = -0.262; // -15° from forward
+            config.max_sweep_angle = 0.262;  // +15° from forward
             config.min_wall_distance = 0.3;
             config.max_detection_range = 3.5;
             config.angular_speed = 0.2;
             config.forward_speed = 0.05;
             config.angle_setpoint = -M_PI / 2.0;
             config.wall_alignment_tolerance = 0.2;
-            align_controller_ = std::make_unique<WallFollowingController>(
-                config, get_logger(), tf_broadcaster_);
+            align_controller_ =
+                std::make_unique<WallFollowingController>(config, get_logger(), tf_broadcaster_);
         }
 
         // Create wall following controller (continuous mode)
         {
             WallFollowingController::Config config;
             config.continuous = true;
-            config.min_sweep_angle = 3 * M_PI / 2.0;  // 270° (right side)
-            config.max_sweep_angle = 2 * M_PI;        // 360° (forward)
+            config.min_sweep_angle = 3 * M_PI / 2.0; // 270° (right side)
+            config.max_sweep_angle = 2 * M_PI;       // 360° (forward)
             config.min_wall_distance = 0.3;
             config.max_detection_range = 1.5;
             config.angular_speed = 0.2;
             config.forward_speed = 0.05;
             config.angle_setpoint = -M_PI / 2.0;
             config.wall_alignment_tolerance = 0.2;
-            follow_controller_ = std::make_unique<WallFollowingController>(
-                config, get_logger(), tf_broadcaster_);
+            follow_controller_ =
+                std::make_unique<WallFollowingController>(config, get_logger(), tf_broadcaster_);
         }
 
         RCLCPP_INFO(get_logger(), "WallFollower initialized in ALIGNING_TO_WALL state");
@@ -121,12 +121,12 @@ public:
 
         switch (current_state_)
         {
-            case WallFollowerState::ALIGNING_TO_WALL:
-                output = align_controller_->update(input);
-                break;
-            case WallFollowerState::FOLLOWING_WALL:
-                output = follow_controller_->update(input);
-                break;
+        case WallFollowerState::ALIGNING_TO_WALL:
+            output = align_controller_->update(input);
+            break;
+        case WallFollowerState::FOLLOWING_WALL:
+            output = follow_controller_->update(input);
+            break;
         }
 
         // Publish velocity command
@@ -147,13 +147,13 @@ public:
     {
         switch (current_state_)
         {
-            case WallFollowerState::ALIGNING_TO_WALL:
-                RCLCPP_INFO(get_logger(), "Alignment complete, transitioning to FOLLOWING_WALL");
-                current_state_ = WallFollowerState::FOLLOWING_WALL;
-                break;
-            case WallFollowerState::FOLLOWING_WALL:
-                // Right wall following runs indefinitely
-                break;
+        case WallFollowerState::ALIGNING_TO_WALL:
+            RCLCPP_INFO(get_logger(), "Alignment complete, transitioning to FOLLOWING_WALL");
+            current_state_ = WallFollowerState::FOLLOWING_WALL;
+            break;
+        case WallFollowerState::FOLLOWING_WALL:
+            // Right wall following runs indefinitely
+            break;
         }
     }
 
@@ -164,16 +164,18 @@ public:
         /// if we have message or track it, etc
         if (!latest_scan_msg_)
         {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "No scan data received yet");
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "No scan data received yet");
             return;
         }
 
         const auto scan_age = get_clock()->now() - latest_scan_time_;
         if (scan_age.seconds() > 0.5)
         {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Scan data is stale (age: %.3f s)", scan_age.seconds());
+            RCLCPP_WARN_THROTTLE(get_logger(),
+                *get_clock(),
+                1000,
+                "Scan data is stale (age: %.3f s)",
+                scan_age.seconds());
             stop_motion();
             return;
         }
@@ -183,26 +185,31 @@ public:
 
         try
         {
-            auto ts = tf_buffer_->lookupTransform(
-                target_frame,
+            auto ts = tf_buffer_->lookupTransform(target_frame,
                 source_frame,
                 latest_scan_time_,
-                rclcpp::Duration::from_seconds(0.1)
-            );
+                rclcpp::Duration::from_seconds(0.1));
             pose_ = tf2::transformToEigen(ts.transform);
         }
         catch (const tf2::TransformException& ex)
         {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Could not get transform at scan time: %s", ex.what());
+            RCLCPP_WARN_THROTTLE(get_logger(),
+                *get_clock(),
+                1000,
+                "Could not get transform at scan time: %s",
+                ex.what());
             return;
         }
 
         detections_ = to_laser_detections(*latest_scan_msg_);
 
-        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+        RCLCPP_INFO_THROTTLE(get_logger(),
+            *get_clock(),
+            2000,
             "Update: scan_ranges=%zu, detections=%zu, state=%d",
-            latest_scan_msg_->ranges.size(), detections_.size(), static_cast<int>(current_state_));
+            latest_scan_msg_->ranges.size(),
+            detections_.size(),
+            static_cast<int>(current_state_));
 
         handle_motion();
     }

@@ -60,16 +60,11 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
     // Step 2: If target_point is found, move forward and align
     if (target_point_odom.has_value())
     {
-        geometry_msgs::msg::TransformStamped transform_stamped;
+        geometry_msgs::msg::TransformStamped transform_stamped{
+            tf2::eigenToTransform(*target_point_odom)};
         transform_stamped.header.stamp = input.timestamp;
         transform_stamped.header.frame_id = "odom";
         transform_stamped.child_frame_id = "wall_follow_target_point";
-
-        const auto pose_msg{tf2::toMsg(*target_point_odom)};
-        transform_stamped.transform.translation.x = pose_msg.position.x;
-        transform_stamped.transform.translation.y = pose_msg.position.y;
-        transform_stamped.transform.translation.z = pose_msg.position.z;
-        transform_stamped.transform.rotation = pose_msg.orientation;
 
         tf_broadcaster_->sendTransform(transform_stamped);
 

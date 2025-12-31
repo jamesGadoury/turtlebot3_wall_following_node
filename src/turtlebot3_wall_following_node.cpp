@@ -124,16 +124,6 @@ public:
         handle_motion();
     }
 
-    void stop_motion()
-    {
-        geometry_msgs::msg::TwistStamped msg;
-        msg.header.frame_id = "";
-        msg.header.stamp = get_clock()->now();
-        msg.twist.linear.x = 0.0;
-        msg.twist.angular.z = 0.0;
-        cmd_vel_publisher_->publish(msg);
-    }
-
     void handle_motion()
     {
         SystemResponse input;

@@ -40,47 +40,17 @@ void WallFollowingController::find_and_update_target_point(
     const std::vector<LaserDetection>& detections,
     const Eigen::Isometry3d& pose)
 {
-
-    /// TODO: make a normalize method
-    // Normalize sweep_center_angle to [0, 2π] range
-    double center = config_.sweep_center_angle;
-    while (center < 0.0) center += 2.0 * M_PI;
-    while (center >= 2.0 * M_PI) center -= 2.0 * M_PI;
-
-    // Calculate sweep bounds centered around center angle
-    const double half_sweep = config_.sweep_angle_range / 2.0;
-    double lower_bound = center - half_sweep;
-    double upper_bound = center + half_sweep;
-
     rclcpp::Clock steady_clock(RCL_STEADY_TIME);
 
-    // Collect all in-range detections
+    // Collect all in-range detections using simple min/max angle check
     std::vector<const LaserDetection*> in_range_detections;
     int out_of_range_count = 0;
 
     for (const auto& detection : detections)
     {
-        bool in_range;
-
-        // Handle wrapping around 0/2π
-        if (lower_bound < 0.0)
-        {
-            // Range wraps below 0: [2π + lower_bound, 2π] or [0, upper_bound]
-            in_range = (detection.angle >= (2.0 * M_PI + lower_bound)) ||
-                      (detection.angle <= upper_bound);
-        }
-        else if (upper_bound > 2.0 * M_PI)
-        {
-            // Range wraps above 2π: [lower_bound, 2π] or [0, upper_bound - 2π]
-            in_range = (detection.angle >= lower_bound) ||
-                      (detection.angle <= (upper_bound - 2.0 * M_PI));
-        }
-        else
-        {
-            // Normal case: [lower_bound, upper_bound]
-            in_range = (detection.angle >= lower_bound) &&
-                      (detection.angle <= upper_bound);
-        }
+        // Simple range check: detection.angle must be between min and max
+        bool in_range = (detection.angle >= config_.min_sweep_angle) &&
+                       (detection.angle <= config_.max_sweep_angle);
 
         if (in_range)
         {
@@ -138,10 +108,9 @@ void WallFollowingController::find_and_update_target_point(
         detections.size(), in_range_count, out_of_range_count);
 
     RCLCPP_DEBUG_THROTTLE(logger_, steady_clock, 1000,
-        "Sweep config: center=%.2f rad (%.0f°), range=%.2f rad (%.0f°), bounds=[%.1f°, %.1f°]",
-        config_.sweep_center_angle, config_.sweep_center_angle * 180.0 / M_PI,
-        config_.sweep_angle_range, config_.sweep_angle_range * 180.0 / M_PI,
-        lower_bound * 180.0 / M_PI, upper_bound * 180.0 / M_PI);
+        "Sweep angles: min=%.2f rad (%.1f°), max=%.2f rad (%.1f°)",
+        config_.min_sweep_angle, config_.min_sweep_angle * 180.0 / M_PI,
+        config_.max_sweep_angle, config_.max_sweep_angle * 180.0 / M_PI);
 
     // If we found a point and it's within max detection range, use it as target
     if (nearest && nearest->distance <= config_.max_detection_range)

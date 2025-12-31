@@ -28,14 +28,12 @@ public:
     {
         // Continuous mode: true = continuous wall following, false = align once and complete
         bool continuous{true};
-        
-        /// TODO: maybe should let consumer specify the sweep min and max directly
 
-        // Center angle for sweep range (rad, 0 = forward, -π/2 = right side)
-        double sweep_center_angle{-M_PI / 2.0};
+        // Minimum sweep angle for finding nearest point (rad, 0 = forward, π/2 = left, -π/2 = right)
+        double min_sweep_angle{-M_PI};
 
-        // Total sweep angle range for finding nearest point (rad)
-        double sweep_angle_range{M_PI};
+        // Maximum sweep angle for finding nearest point (rad, 0 = forward, π/2 = left, -π/2 = right)
+        double max_sweep_angle{0.0};
 
         // Target distance to wall - start aligning when closer than this (m)
         double min_wall_distance{0.5};

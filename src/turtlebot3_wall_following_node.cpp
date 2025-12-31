@@ -57,13 +57,12 @@ public:
         time_since_startup_{std::chrono::steady_clock::now()},
         current_state_{WallFollowerState::ALIGNING_TO_WALL}
     {
-        /// TODO: fix initialization
         // Create alignment controller (one-shot mode)
         {
             WallFollowingController::Config config;
             config.continuous = false;
-            config.sweep_center_angle = 0.0;
-            config.sweep_angle_range = 0.524; // roughly 30 degrees
+            config.min_sweep_angle = -0.262;  // -15° from forward
+            config.max_sweep_angle = 0.262;   // +15° from forward
             config.min_wall_distance = 0.3;
             config.max_detection_range = 3.5;
             config.angular_speed = 0.2;
@@ -78,8 +77,8 @@ public:
         {
             WallFollowingController::Config config;
             config.continuous = true;
-            config.sweep_center_angle = 3 * M_PI / 2.0 + M_PI / 4.0;
-            config.sweep_angle_range = M_PI / 2.0;
+            config.min_sweep_angle = 3 * M_PI / 2.0;  // 270° (right side)
+            config.max_sweep_angle = 2 * M_PI;        // 360° (forward)
             config.min_wall_distance = 0.3;
             config.max_detection_range = 1.5;
             config.angular_speed = 0.2;

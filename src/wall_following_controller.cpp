@@ -12,16 +12,16 @@ namespace turtlebot3
 
 WallFollowingController::WallFollowingController(rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
-    WallFollowingController(Config{}, logger, tf_broadcaster)
+    WallFollowingController(Params{}, logger, tf_broadcaster)
 {
 }
 
-WallFollowingController::WallFollowingController(const Config& config,
+WallFollowingController::WallFollowingController(const Params& params,
     rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
-    config_{config},
+    params_{params},
     robot_params_{get_turtlebot3_params()},
-    target_finder_{config.finder_params, logger},
+    target_finder_{params.finder_params, logger},
     logger_{logger},
     tf_broadcaster_{tf_broadcaster}
 {
@@ -83,7 +83,7 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
         double angle_to_target_odom = std::atan2(direction_to_target.y(), direction_to_target.x());
 
         // Compute angle error in robot frame
-        double angle_error = angle_to_target_odom - robot_yaw - config_.angle_setpoint;
+        double angle_error = angle_to_target_odom - robot_yaw - params_.angle_setpoint;
 
         // Normalize angle_error to [-π, π]
         while (angle_error > M_PI)
@@ -92,7 +92,7 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
             angle_error += 2.0 * M_PI;
 
         // Compute distance error (positive when too far, negative when too close)
-        double distance_error = distance_to_target - config_.finder_params.min_wall_distance;
+        double distance_error = distance_to_target - params_.finder_params.min_wall_distance;
 
         // Log errors and control state
         RCLCPP_INFO_THROTTLE(logger_,
@@ -101,7 +101,7 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
             "=== ERRORS === distance_error=%.3f m (target=%.3f, actual=%.3f), "
             "angle_error=%.3f rad (%.1f°)",
             distance_error,
-            config_.finder_params.min_wall_distance,
+            params_.finder_params.min_wall_distance,
             distance_to_target,
             angle_error,
             angle_error * 180.0 / M_PI);
@@ -115,18 +115,18 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
 
         // Continuous mode: always move forward and correct angle error
         output.cmd_vel.linear.x =
-            std::clamp(config_.forward_speed, 0.0, robot_params_.max_linear_velocity);
+            std::clamp(params_.forward_speed, 0.0, robot_params_.max_linear_velocity);
 
         double angular_velocity = 0.0;
-        if (std::abs(angle_error) > config_.wall_alignment_tolerance)
+        if (std::abs(angle_error) > params_.wall_alignment_tolerance)
         {
-            angular_velocity = (angle_error > 0) ? config_.angular_speed : -config_.angular_speed;
+            angular_velocity = (angle_error > 0) ? params_.angular_speed : -params_.angular_speed;
             RCLCPP_DEBUG_THROTTLE(logger_,
                 steady_clock,
                 500,
                 "Continuous mode: Applying rotation (angle_error=%.3f rad > tolerance=%.3f rad)",
                 std::abs(angle_error),
-                config_.wall_alignment_tolerance);
+                params_.wall_alignment_tolerance);
         }
         else
         {
@@ -135,7 +135,7 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
                 500,
                 "Continuous mode: No rotation needed (angle_error=%.3f rad <= tolerance=%.3f rad)",
                 std::abs(angle_error),
-                config_.wall_alignment_tolerance);
+                params_.wall_alignment_tolerance);
         }
 
         output.cmd_vel.angular.z = std::clamp(angular_velocity,
@@ -150,7 +150,7 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
             1000,
             "No target point found! detections=%zu, max_range=%.2f - stopping",
             input.detections.size(),
-            config_.finder_params.max_detection_range);
+            params_.finder_params.max_detection_range);
         output.cmd_vel.linear.x = 0.0;
         output.cmd_vel.angular.z = 0.0;
     }

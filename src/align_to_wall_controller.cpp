@@ -12,16 +12,16 @@ namespace turtlebot3
 
 AlignToWallController::AlignToWallController(rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
-    AlignToWallController(Config{}, logger, tf_broadcaster)
+    AlignToWallController(Params{}, logger, tf_broadcaster)
 {
 }
 
-AlignToWallController::AlignToWallController(const Config& config,
+AlignToWallController::AlignToWallController(const Params& params,
     rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
-    config_{config},
+    params_{params},
     robot_params_{get_turtlebot3_params()},
-    target_finder_{config.finder_params, logger},
+    target_finder_{params.finder_params, logger},
     logger_{logger},
     tf_broadcaster_{tf_broadcaster}
 {
@@ -87,7 +87,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
         double angle_to_target_odom = std::atan2(direction_to_target.y(), direction_to_target.x());
 
         // Compute angle error in robot frame
-        double angle_error = angle_to_target_odom - robot_yaw - config_.angle_setpoint;
+        double angle_error = angle_to_target_odom - robot_yaw - params_.angle_setpoint;
 
         // Normalize angle_error to [-π, π]
         while (angle_error > M_PI)
@@ -96,10 +96,10 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             angle_error += 2.0 * M_PI;
 
         // Compute distance error (positive when too far, negative when too close)
-        double distance_error = distance_to_target - config_.finder_params.min_wall_distance;
+        double distance_error = distance_to_target - params_.finder_params.min_wall_distance;
 
         // Check if we're close enough to wall
-        bool within_min_distance = distance_to_target <= config_.finder_params.min_wall_distance;
+        bool within_min_distance = distance_to_target <= params_.finder_params.min_wall_distance;
 
         // Update state
         if (within_min_distance)
@@ -114,7 +114,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             "=== ERRORS === distance_error=%.3f m (target=%.3f, actual=%.3f), "
             "angle_error=%.3f rad (%.1f°), within_min_dist=%d, reached_min=%d, phase=%s",
             distance_error,
-            config_.finder_params.min_wall_distance,
+            params_.finder_params.min_wall_distance,
             distance_to_target,
             angle_error,
             angle_error * 180.0 / M_PI,
@@ -134,7 +134,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
         {
             // Phase 1: Approach - only move forward, no rotation
             output.cmd_vel.linear.x =
-                std::clamp(config_.forward_speed, 0.0, robot_params_.max_linear_velocity);
+                std::clamp(params_.forward_speed, 0.0, robot_params_.max_linear_velocity);
             output.cmd_vel.angular.z = 0.0;
         }
         else
@@ -142,7 +142,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             // Phase 2: Rotate - stop forward motion, only rotate to align
             output.cmd_vel.linear.x = 0.0;
 
-            if (std::abs(angle_error) < config_.wall_alignment_tolerance)
+            if (std::abs(angle_error) < params_.wall_alignment_tolerance)
             {
                 // Alignment complete
                 output.is_complete = true;
@@ -153,7 +153,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             {
                 // Apply rotation
                 double angular_velocity =
-                    (angle_error > 0) ? config_.angular_speed : -config_.angular_speed;
+                    (angle_error > 0) ? params_.angular_speed : -params_.angular_speed;
                 output.cmd_vel.angular.z = std::clamp(angular_velocity,
                     -robot_params_.max_angular_velocity,
                     robot_params_.max_angular_velocity);
@@ -168,7 +168,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             1000,
             "No target point found! detections=%zu, max_range=%.2f - stopping",
             input.detections.size(),
-            config_.finder_params.max_detection_range);
+            params_.finder_params.max_detection_range);
         output.cmd_vel.linear.x = 0.0;
         output.cmd_vel.angular.z = 0.0;
     }

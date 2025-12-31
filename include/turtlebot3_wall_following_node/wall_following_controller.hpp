@@ -22,28 +22,33 @@ namespace turtlebot3
 class WallFollowingController : public ControllerInterface
 {
 public:
-    struct Config
+    struct Params
     {
         // Target point finder parameters
-        TargetPointFinder::Params finder_params;
+        TargetPointFinder::Params finder_params{
+            .min_sweep_angle = 3 * M_PI / 2.0,  // 270° (right side)
+            .max_sweep_angle = 2 * M_PI - 0.01, // ~360° (forward)
+            .min_wall_distance = 0.3,
+            .max_detection_range = 1.5,
+        };
 
         // Angular speed for rotation (rad/s)
-        double angular_speed{0.1};
+        double angular_speed{0.2};
 
         // Forward speed (m/s)
-        double forward_speed{0.1};
+        double forward_speed{0.05};
 
         // Target angle to maintain to wall (rad, -90 degrees = along -y axis)
         double angle_setpoint{-M_PI / 2.0};
 
         // Tolerance for angle alignment (rad)
-        double wall_alignment_tolerance{0.1};
+        double wall_alignment_tolerance{0.2};
     };
 
     WallFollowingController(rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
-    WallFollowingController(const Config& config,
+    WallFollowingController(const Params& params,
         rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
@@ -51,7 +56,7 @@ public:
     ControlInput update(const SystemResponse& input) override;
 
 private:
-    Config config_;
+    Params params_;
     Turtlebot3Params robot_params_;
     TargetPointFinder target_finder_;
     rclcpp::Logger logger_;

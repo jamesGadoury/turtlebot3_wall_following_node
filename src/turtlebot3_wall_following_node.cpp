@@ -59,32 +59,30 @@ public:
     {
         // Create alignment controller (one-shot mode)
         {
-            WallFollowingController::Config config;
-            config.continuous = false;
-            config.min_sweep_angle = -0.262; // -15° from forward
-            config.max_sweep_angle = 0.262;  // +15° from forward
-            config.min_wall_distance = 0.3;
-            config.max_detection_range = 3.5;
-            config.angular_speed = 0.2;
-            config.forward_speed = 0.05;
-            config.angle_setpoint = -M_PI / 2.0;
-            config.wall_alignment_tolerance = 0.2;
+            const WallFollowingController::Config config{.continuous = false,
+                .min_sweep_angle = -0.262, // -15° from forward
+                .max_sweep_angle = 0.262,  // +15° from forward
+                .min_wall_distance = 0.3,
+                .max_detection_range = 3.5,
+                .angular_speed = 0.2,
+                .forward_speed = 0.05,
+                .angle_setpoint = -M_PI / 2.0,
+                .wall_alignment_tolerance = 0.2};
             align_controller_ =
                 std::make_unique<WallFollowingController>(config, get_logger(), tf_broadcaster_);
         }
 
         // Create wall following controller (continuous mode)
         {
-            WallFollowingController::Config config;
-            config.continuous = true;
-            config.min_sweep_angle = 3 * M_PI / 2.0; // 270° (right side)
-            config.max_sweep_angle = 2 * M_PI;       // 360° (forward)
-            config.min_wall_distance = 0.3;
-            config.max_detection_range = 1.5;
-            config.angular_speed = 0.2;
-            config.forward_speed = 0.05;
-            config.angle_setpoint = -M_PI / 2.0;
-            config.wall_alignment_tolerance = 0.2;
+            const WallFollowingController::Config config{.continuous = true,
+                .min_sweep_angle = 3 * M_PI / 2.0, // 270° (right side)
+                .max_sweep_angle = 2 * M_PI,       // 360° (forward)
+                .min_wall_distance = 0.3,
+                .max_detection_range = 1.5,
+                .angular_speed = 0.2,
+                .forward_speed = 0.05,
+                .angle_setpoint = -M_PI / 2.0,
+                .wall_alignment_tolerance = 0.2};
             follow_controller_ =
                 std::make_unique<WallFollowingController>(config, get_logger(), tf_broadcaster_);
         }

@@ -1,3 +1,4 @@
+#include "turtlebot3_wall_following_node/align_to_wall_controller.hpp"
 #include "turtlebot3_wall_following_node/controller_interface.hpp"
 #include "turtlebot3_wall_following_node/laser_detection.hpp"
 #include "turtlebot3_wall_following_node/msg_utils.hpp"
@@ -60,26 +61,32 @@ public:
     {
         // Create alignment controller (one-shot mode)
         {
-            const WallFollowingController::Config config{.continuous = false,
-                .min_sweep_angle = -0.262, // -15° from forward
-                .max_sweep_angle = 0.262,  // +15° from forward
-                .min_wall_distance = 0.3,
-                .max_detection_range = 3.5,
+            const AlignToWallController::Config config{
+                .finder_params =
+                    {
+                        .min_sweep_angle = -0.262, // -15° from forward
+                        .max_sweep_angle = 0.262,  // +15° from forward
+                        .min_wall_distance = 0.3,
+                        .max_detection_range = 3.5,
+                    },
                 .angular_speed = 0.2,
                 .forward_speed = 0.05,
                 .angle_setpoint = -M_PI / 2.0,
                 .wall_alignment_tolerance = 0.2};
             align_controller_ =
-                std::make_unique<WallFollowingController>(config, get_logger(), tf_broadcaster_);
+                std::make_unique<AlignToWallController>(config, get_logger(), tf_broadcaster_);
         }
 
         // Create wall following controller (continuous mode)
         {
-            const WallFollowingController::Config config{.continuous = true,
-                .min_sweep_angle = 3 * M_PI / 2.0, // 270° (right side)
-                .max_sweep_angle = 2 * M_PI,       // 360° (forward)
-                .min_wall_distance = 0.3,
-                .max_detection_range = 1.5,
+            const WallFollowingController::Config config{
+                .finder_params =
+                    {
+                        .min_sweep_angle = 3 * M_PI / 2.0, // 270° (right side)
+                        .max_sweep_angle = 2 * M_PI,       // 360° (forward)
+                        .min_wall_distance = 0.3,
+                        .max_detection_range = 1.5,
+                    },
                 .angular_speed = 0.2,
                 .forward_speed = 0.05,
                 .angle_setpoint = -M_PI / 2.0,
@@ -183,7 +190,7 @@ private:
 
     // State machine
     WallFollowerState current_state_;
-    std::unique_ptr<WallFollowingController> align_controller_;
+    std::unique_ptr<AlignToWallController> align_controller_;
     std::unique_ptr<WallFollowingController> follow_controller_;
 };
 

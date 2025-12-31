@@ -46,6 +46,8 @@ endif()
 set(SOURCES
   src/msg_utils.cpp
   src/turtlebot3_params.cpp
+  src/target_point_finder.cpp
+  src/align_to_wall_controller.cpp
   src/wall_following_controller.cpp
 )
 set(LIBRARY spiral_turtlebot3_library)

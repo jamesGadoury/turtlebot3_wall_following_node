@@ -7,6 +7,7 @@
 #include <Eigen/src/Geometry/Transform.h>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
 
@@ -14,12 +15,15 @@ namespace turtlebot3
 {
 
 /**
- * @brief Controller that continuously follows a wall
+ * @brief Controller that aligns to the nearest wall once and completes
  *
- * This controller continuously updates the target point and follows the wall indefinitely.
- * The target is recalculated on every update to track the nearest wall point.
+ * This controller operates in two phases:
+ * 1. Approach: Move forward until within min_wall_distance
+ * 2. Align: Stop and rotate until aligned with the wall
+ *
+ * The target point is found only once at the start.
  */
-class WallFollowingController : public ControllerInterface
+class AlignToWallController : public ControllerInterface
 {
 public:
     struct Config
@@ -40,10 +44,10 @@ public:
         double wall_alignment_tolerance{0.1};
     };
 
-    WallFollowingController(rclcpp::Logger logger,
+    AlignToWallController(rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
-    WallFollowingController(const Config& config,
+    AlignToWallController(const Config& config,
         rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
@@ -54,6 +58,8 @@ private:
     Config config_;
     Turtlebot3Params robot_params_;
     TargetPointFinder target_finder_;
+    bool reached_min_distance_{false};
+    std::optional<Eigen::Isometry3d> target_point_odom_;
     rclcpp::Logger logger_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 };

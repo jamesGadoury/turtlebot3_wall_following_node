@@ -73,7 +73,8 @@ public:
 
         try
         {
-            auto ts = tf_buffer_->lookupTransform(target_frame, source_frame, tf2::TimePointZero);
+            const auto ts{
+                tf_buffer_->lookupTransform(target_frame, source_frame, tf2::TimePointZero)};
             pose_ = tf2::transformToEigen(ts.transform);
         }
         catch (const tf2::TransformException& ex)
@@ -101,22 +102,19 @@ public:
 
     void handle_motion()
     {
-        SystemResponse input;
-        input.timestamp = get_clock()->now();
-        input.pose = pose_;
-        input.detections = detections_;
+        const SystemResponse input{get_clock()->now(), pose_, detections_};
 
-        ControlInput output;
-
-        switch (current_state_)
-        {
-        case WallFollowerState::ALIGNING_TO_WALL:
-            output = align_controller_->update(input);
-            break;
-        case WallFollowerState::FOLLOWING_WALL:
-            output = follow_controller_->update(input);
-            break;
-        }
+        const ControlInput output{[this, &input]
+            {
+                switch (current_state_)
+                {
+                case WallFollowerState::ALIGNING_TO_WALL:
+                    return align_controller_->update(input);
+                case WallFollowerState::FOLLOWING_WALL:
+                    return follow_controller_->update(input);
+                }
+                return ControlInput();
+            }()};
 
         geometry_msgs::msg::TwistStamped cmd_msg;
         cmd_msg.header.frame_id = "";

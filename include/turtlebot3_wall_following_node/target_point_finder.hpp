@@ -45,8 +45,9 @@ public:
      * @param pose Current robot pose in odom frame (odom_T_base_link)
      * @return Target point in odom frame, or std::nullopt if no valid target found
      */
-    std::optional<Eigen::Isometry3d>
-    find_target_point(const std::vector<LaserDetection>& detections, const Eigen::Isometry3d& pose);
+    std::optional<Eigen::Isometry3d> find_target_point(
+        const std::vector<LaserDetection>& detections,
+        const Eigen::Isometry3d& pose) const;
 
 private:
     Params params_;

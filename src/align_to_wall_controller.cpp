@@ -41,11 +41,10 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
     output.cmd_vel.angular.z = 0.0;
     output.is_complete = false;
 
-    rclcpp::Clock steady_clock(RCL_STEADY_TIME);
+    const rclcpp::Clock steady_clock(RCL_STEADY_TIME);
 
-    // Log controller inputs
-    Eigen::Vector3d robot_position = input.pose.translation();
-    double robot_yaw = std::atan2(input.pose.rotation()(1, 0), input.pose.rotation()(0, 0));
+    const Eigen::Vector3d robot_position{input.pose.translation()};
+    const double robot_yaw{std::atan2(input.pose.rotation()(1, 0), input.pose.rotation()(0, 0))};
     RCLCPP_INFO_THROTTLE(logger_,
         steady_clock,
         1000,
@@ -71,7 +70,7 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
         transform_stamped.header.stamp = input.timestamp;
         transform_stamped.header.frame_id = "odom";
         transform_stamped.child_frame_id = "align_target_point";
-        auto pose_msg = tf2::toMsg(*target_point_odom_);
+        const auto pose_msg{tf2::toMsg(*target_point_odom_)};
         transform_stamped.transform.translation.x = pose_msg.position.x;
         transform_stamped.transform.translation.y = pose_msg.position.y;
         transform_stamped.transform.translation.z = pose_msg.position.z;
@@ -79,17 +78,18 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
 
         tf_broadcaster_->sendTransform(transform_stamped);
 
-        // Step 3: Compute errors - distance and angle from robot to target in odom frame
-        Eigen::Vector3d direction_to_target = target_point_odom_->translation() - robot_position;
-        double distance_to_target = direction_to_target.norm();
-        double angle_to_target_odom = std::atan2(direction_to_target.y(), direction_to_target.x());
+        const Eigen::Vector3d direction_to_target{
+            target_point_odom_->translation() - robot_position};
+        const double distance_to_target{direction_to_target.norm()};
+        const double angle_to_target_odom{
+            std::atan2(direction_to_target.y(), direction_to_target.x())};
 
-        double target_heading = angle_to_target_odom - params_.angle_setpoint;
-        double heading_error = HeadingController::normalize_angle(target_heading - robot_yaw);
-        double distance_error = distance_to_target - params_.finder_params.min_wall_distance;
+        const double target_heading{angle_to_target_odom - params_.angle_setpoint};
+        const double heading_error{HeadingController::normalize_angle(target_heading - robot_yaw)};
+        const double distance_error{distance_to_target - params_.finder_params.min_wall_distance};
 
-        // Check if we're close enough to wall
-        bool within_min_distance = distance_to_target <= params_.finder_params.min_wall_distance;
+        const bool within_min_distance{
+            distance_to_target <= params_.finder_params.min_wall_distance};
 
         // Update state
         if (within_min_distance)

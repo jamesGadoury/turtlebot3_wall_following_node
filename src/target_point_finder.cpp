@@ -14,51 +14,38 @@ TargetPointFinder::TargetPointFinder(const Params& params, rclcpp::Logger logger
 
 std::optional<Eigen::Isometry3d> TargetPointFinder::find_target_point(
     const std::vector<LaserDetection>& detections,
-    const Eigen::Isometry3d& pose)
+    const Eigen::Isometry3d& pose) const
 {
-    rclcpp::Clock steady_clock(RCL_STEADY_TIME);
+    const rclcpp::Clock steady_clock(RCL_STEADY_TIME);
 
-    // Collect all in-range detections using simple min/max angle check
     std::vector<const LaserDetection*> in_range_detections;
-    int out_of_range_count = 0;
 
     for (const auto& detection : detections)
     {
-        // Simple range check: detection.angle must be between min and max
-        bool in_range = (detection.angle >= params_.min_sweep_angle) &&
-                        (detection.angle <= params_.max_sweep_angle);
+        const bool in_range{(detection.angle >= params_.min_sweep_angle) &&
+                            (detection.angle <= params_.max_sweep_angle)};
 
         if (in_range)
         {
             in_range_detections.push_back(&detection);
         }
-        else
-        {
-            out_of_range_count++;
-        }
     }
 
-    // Sort detections by angle distance from forward (0°)
-    // This prioritizes forward-facing detections
     std::sort(in_range_detections.begin(),
         in_range_detections.end(),
         [](const LaserDetection* a, const LaserDetection* b)
         {
-            // Calculate angular distance from forward (0° or 2π)
             auto angle_from_forward = [](float angle)
             {
-                float dist_from_zero = std::abs(angle);
-                float dist_from_2pi = std::abs(angle - 2.0f * M_PI);
+                const float dist_from_zero{std::abs(angle)};
+                const float dist_from_2pi{std::abs(angle - static_cast<float>(2.0 * M_PI))};
                 return std::min(dist_from_zero, dist_from_2pi);
             };
             return angle_from_forward(a->angle) < angle_from_forward(b->angle);
         });
 
-    // Selection strategy:
-    // 1. Scan from front to back: if any detection is below min_wall_distance, choose it
-    // 2. Otherwise, choose the detection with minimum distance
-    const LaserDetection* nearest = nullptr;
-    float min_distance = std::numeric_limits<float>::max();
+    const LaserDetection* nearest{nullptr};
+    float min_distance{std::numeric_limits<float>::max()};
 
     for (const auto* detection : in_range_detections)
     {
@@ -84,15 +71,12 @@ std::optional<Eigen::Isometry3d> TargetPointFinder::find_target_point(
         }
     }
 
-    int in_range_count = in_range_detections.size();
-
     RCLCPP_INFO_THROTTLE(logger_,
         steady_clock,
         1000,
-        "=== SWEEP SEARCH === total_detections=%zu, in_range=%d, out_of_range=%d",
+        "=== SWEEP SEARCH === total_detections=%zu, in_range=%zu",
         detections.size(),
-        in_range_count,
-        out_of_range_count);
+        in_range_detections.size());
 
     RCLCPP_DEBUG_THROTTLE(logger_,
         steady_clock,
@@ -117,17 +101,15 @@ std::optional<Eigen::Isometry3d> TargetPointFinder::find_target_point(
             nearest->x(),
             nearest->y());
 
-        // 1. Create transform for detection in base_link frame
-        const Eigen::Isometry3d base_link_T_detection = std::invoke(
+        const Eigen::Isometry3d base_link_T_detection{std::invoke(
             [&nearest]
             {
-                Eigen::Isometry3d t = Eigen::Isometry3d::Identity();
+                Eigen::Isometry3d t{Eigen::Isometry3d::Identity()};
                 t.translation() = Eigen::Vector3d{nearest->x(), nearest->y(), 0.0};
                 return t;
-            });
+            })};
 
-        // 2. Transform to odom frame: odom_T_target = odom_T_base_link * base_link_T_detection
-        Eigen::Isometry3d target_point_odom = pose * base_link_T_detection;
+        const Eigen::Isometry3d target_point_odom{pose * base_link_T_detection};
 
         RCLCPP_DEBUG_STREAM_THROTTLE(logger_,
             steady_clock,

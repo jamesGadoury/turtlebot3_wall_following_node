@@ -13,16 +13,13 @@ vector<LaserDetection> to_laser_detections(const sensor_msgs::msg::LaserScan& sc
     vector<LaserDetection> detections;
     float angle{scan.angle_min};
 
-    for (float range : scan.ranges)
+    for (const float range : scan.ranges)
     {
         if (!std::isfinite(range))
         {
             continue;
         }
-        LaserDetection detection;
-        detection.distance = range;
-        detection.angle = angle;
-        detections.emplace_back(std::move(detection));
+        detections.emplace_back(LaserDetection{range, angle});
 
         angle += scan.angle_increment;
     }

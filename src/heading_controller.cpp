@@ -14,25 +14,22 @@ double HeadingController::compute_angular_velocity(double current_heading,
     double target_heading,
     double max_angular_velocity) const
 {
-    // Compute heading error
-    double heading_error = normalize_angle(target_heading - current_heading);
+    const double heading_error = normalize_angle(target_heading - current_heading);
 
-    // Check if within tolerance
     if (std::abs(heading_error) <= params_.alignment_tolerance)
     {
         return 0.0;
     }
 
-    // Apply angular velocity based on error direction
-    double angular_velocity = (heading_error > 0) ? params_.angular_speed : -params_.angular_speed;
+    const double angular_velocity =
+        (heading_error > 0) ? params_.angular_speed : -params_.angular_speed;
 
-    // Clamp to max velocity
     return std::clamp(angular_velocity, -max_angular_velocity, max_angular_velocity);
 }
 
 bool HeadingController::is_aligned(double current_heading, double target_heading) const
 {
-    double heading_error = normalize_angle(target_heading - current_heading);
+    const double heading_error = normalize_angle(target_heading - current_heading);
     return std::abs(heading_error) <= params_.alignment_tolerance;
 }
 

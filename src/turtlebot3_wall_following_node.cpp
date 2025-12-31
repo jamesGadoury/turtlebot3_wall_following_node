@@ -59,10 +59,7 @@ public:
         time_since_startup_{std::chrono::steady_clock::now()},
         current_state_{WallFollowerState::ALIGNING_TO_WALL}
     {
-        // Create alignment controller (one-shot mode)
         align_controller_ = std::make_unique<AlignToWallController>(get_logger(), tf_broadcaster_);
-
-        // Create wall following controller (continuous mode)
         follow_controller_ =
             std::make_unique<WallFollowingController>(get_logger(), tf_broadcaster_);
 
@@ -121,14 +118,12 @@ public:
             break;
         }
 
-        // Publish velocity command
         geometry_msgs::msg::TwistStamped cmd_msg;
         cmd_msg.header.frame_id = "";
         cmd_msg.header.stamp = get_clock()->now();
         cmd_msg.twist = output.cmd_vel;
         cmd_vel_publisher_->publish(cmd_msg);
 
-        // Handle state transition
         if (output.is_complete)
         {
             handle_transition();
@@ -144,7 +139,7 @@ public:
             current_state_ = WallFollowerState::FOLLOWING_WALL;
             break;
         case WallFollowerState::FOLLOWING_WALL:
-            // Right wall following runs indefinitely
+            // Runs indefinitely
             break;
         }
     }

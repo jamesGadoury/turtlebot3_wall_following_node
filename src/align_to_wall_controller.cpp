@@ -67,13 +67,10 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
     // Step 2: If target_point_odom_ is set, execute two-phase alignment
     if (target_point_odom_.has_value())
     {
-        // Broadcast TF for target point in odom frame
         geometry_msgs::msg::TransformStamped transform_stamped;
         transform_stamped.header.stamp = input.timestamp;
         transform_stamped.header.frame_id = "odom";
         transform_stamped.child_frame_id = "align_target_point";
-
-        // Convert Eigen::Isometry3d to Transform using tf2_eigen
         auto pose_msg = tf2::toMsg(*target_point_odom_);
         transform_stamped.transform.translation.x = pose_msg.position.x;
         transform_stamped.transform.translation.y = pose_msg.position.y;
@@ -87,13 +84,8 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
         double distance_to_target = direction_to_target.norm();
         double angle_to_target_odom = std::atan2(direction_to_target.y(), direction_to_target.x());
 
-        // Compute target heading: angle to target plus desired offset
         double target_heading = angle_to_target_odom - params_.angle_setpoint;
-
-        // Compute heading error using heading controller
         double heading_error = HeadingController::normalize_angle(target_heading - robot_yaw);
-
-        // Compute distance error (positive when too far, negative when too close)
         double distance_error = distance_to_target - params_.finder_params.min_wall_distance;
 
         // Check if we're close enough to wall
@@ -105,7 +97,6 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             reached_min_distance_ = true;
         }
 
-        // Log errors and control state
         RCLCPP_INFO_THROTTLE(logger_,
             steady_clock,
             500,
@@ -127,7 +118,6 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
                 << input.pose.matrix() << "\nTarget pose (odom):\n"
                 << target_point_odom_->matrix());
 
-        // Two-phase behavior
         if (!reached_min_distance_)
         {
             // Phase 1: Approach - only move forward, no rotation
@@ -149,7 +139,6 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
             }
             else
             {
-                // Apply rotation using heading controller
                 output.cmd_vel.angular.z = heading_controller_.compute_angular_velocity(robot_yaw,
                     target_heading,
                     robot_params_.max_angular_velocity);
@@ -169,7 +158,6 @@ ControlInput AlignToWallController::update(const SystemResponse& input)
         output.cmd_vel.angular.z = 0.0;
     }
 
-    // Log controller outputs
     RCLCPP_INFO_THROTTLE(logger_,
         steady_clock,
         500,

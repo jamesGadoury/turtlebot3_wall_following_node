@@ -1,6 +1,9 @@
 #include "turtlebot3_wall_following_node/turtlebot3_params.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <sstream>
+#include <stdexcept>
 
 namespace turtlebot3
 {
@@ -47,18 +50,18 @@ Turtlebot3Params get_turtlebot3_params()
     if (model == BURGER_MODEL)
     {
         return Turtlebot3Params{
-            model,                  // model
-            BURGER_MAX_LIN_VEL,     // 0.22 m/s
-            BURGER_MAX_ANG_VEL      // 2.84 rad/s
+            model,              // model
+            BURGER_MAX_LIN_VEL, // 0.22 m/s
+            BURGER_MAX_ANG_VEL  // 2.84 rad/s
         };
     }
 
     if (model == WAFFLE_MODEL)
     {
         return Turtlebot3Params{
-            model,                  // model
-            WAFFLE_MAX_LIN_VEL,     // 0.26 m/s
-            WAFFLE_MAX_ANG_VEL      // 1.82 rad/s
+            model,              // model
+            WAFFLE_MAX_LIN_VEL, // 0.26 m/s
+            WAFFLE_MAX_ANG_VEL  // 1.82 rad/s
         };
     }
 

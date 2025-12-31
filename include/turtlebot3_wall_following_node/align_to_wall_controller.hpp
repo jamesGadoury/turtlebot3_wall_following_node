@@ -8,6 +8,7 @@
 #include <Eigen/src/Geometry/Transform.h>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
 
@@ -15,27 +16,30 @@ namespace turtlebot3
 {
 
 /**
- * @brief Controller that continuously follows a wall
+ * @brief Controller that aligns to the nearest wall once and completes
  *
- * This controller continuously updates the target point and follows the wall indefinitely.
- * The target is recalculated on every update to track the nearest wall point.
+ * This controller operates in two phases:
+ * 1. Approach: Move forward until within min_wall_distance
+ * 2. Align: Stop and rotate until aligned with the wall
+ *
+ * The target point is found only once at the start.
  */
-class WallFollowingController : public ControllerInterface
+class AlignToWallController : public ControllerInterface
 {
 public:
     struct Params
     {
         // Target point finder parameters
         TargetPointFinder::Params finder_params{
-            .min_sweep_angle = 3 * M_PI / 2.0,  // 270° (right side)
-            .max_sweep_angle = 2 * M_PI - 0.01, // ~360° (forward)
+            .min_sweep_angle = -0.262, // -15° from forward
+            .max_sweep_angle = 0.262,  // +15° from forward
             .min_wall_distance = 0.25,
-            .max_detection_range = 1.5,
+            .max_detection_range = 3.5,
         };
 
         // Heading controller parameters
         HeadingController::Params heading_params{
-            .angular_speed = 0.8,
+            .angular_speed = 0.2,
             .alignment_tolerance = 0.2,
         };
 
@@ -46,10 +50,10 @@ public:
         double angle_setpoint{-M_PI / 2.0};
     };
 
-    WallFollowingController(rclcpp::Logger logger,
+    AlignToWallController(rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
-    WallFollowingController(const Params& params,
+    AlignToWallController(const Params& params,
         rclcpp::Logger logger,
         std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster);
 
@@ -61,6 +65,8 @@ private:
     Turtlebot3Params robot_params_;
     TargetPointFinder target_finder_;
     HeadingController heading_controller_;
+    bool reached_min_distance_{false};
+    std::optional<Eigen::Isometry3d> target_point_odom_;
     rclcpp::Logger logger_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 };

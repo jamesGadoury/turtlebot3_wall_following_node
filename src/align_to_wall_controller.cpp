@@ -1,4 +1,4 @@
-#include "turtlebot3_wall_following_node/wall_following_controller.hpp"
+#include "turtlebot3_wall_following_node/align_to_wall_controller.hpp"
 
 #include <Eigen/src/Geometry/Transform.h>
 #include <algorithm>
@@ -10,13 +10,13 @@
 namespace turtlebot3
 {
 
-WallFollowingController::WallFollowingController(rclcpp::Logger logger,
+AlignToWallController::AlignToWallController(rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
-    WallFollowingController(Params{}, logger, tf_broadcaster)
+    AlignToWallController(Params{}, logger, tf_broadcaster)
 {
 }
 
-WallFollowingController::WallFollowingController(const Params& params,
+AlignToWallController::AlignToWallController(const Params& params,
     rclcpp::Logger logger,
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster) :
     params_{params},
@@ -28,11 +28,13 @@ WallFollowingController::WallFollowingController(const Params& params,
 {
 }
 
-void WallFollowingController::reset()
+void AlignToWallController::reset()
 {
+    target_point_odom_.reset();
+    reached_min_distance_ = false;
 }
 
-ControlInput WallFollowingController::update(const SystemResponse& input)
+ControlInput AlignToWallController::update(const SystemResponse& input)
 {
     ControlInput output;
     output.cmd_vel.linear.x = 0.0;
@@ -46,30 +48,34 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
     RCLCPP_INFO_THROTTLE(logger_,
         steady_clock,
         1000,
-        "=== WALL FOLLOWING CONTROLLER INPUT === detections=%zu, robot_pos=[%.3f, %.3f], "
-        "robot_yaw=%.3f rad (%.1f°)",
+        "=== ALIGN TO WALL CONTROLLER INPUT === detections=%zu, has_target=%d, robot_pos=[%.3f, "
+        "%.3f], robot_yaw=%.3f rad (%.1f°)",
         input.detections.size(),
+        target_point_odom_.has_value(),
         robot_position.x(),
         robot_position.y(),
         robot_yaw,
         robot_yaw * 180.0 / M_PI);
 
-    const std::optional<Eigen::Isometry3d> target_point_odom{
-        target_finder_.find_target_point(input.detections, input.pose)};
+    // Step 1: Find target point once (only if not already set)
+    if (!target_point_odom_.has_value())
+    {
+        target_point_odom_ = target_finder_.find_target_point(input.detections, input.pose);
+    }
 
-    // Step 2: If target_point is found, move forward and align
-    if (target_point_odom.has_value())
+    // Step 2: If target_point_odom_ is set, execute two-phase alignment
+    if (target_point_odom_.has_value())
     {
         geometry_msgs::msg::TransformStamped transform_stamped{
-            tf2::eigenToTransform(*target_point_odom)};
+            tf2::eigenToTransform(*target_point_odom_)};
         transform_stamped.header.stamp = input.timestamp;
         transform_stamped.header.frame_id = "odom";
-        transform_stamped.child_frame_id = "wall_follow_target_point";
+        transform_stamped.child_frame_id = "align_target_point";
 
         tf_broadcaster_->sendTransform(transform_stamped);
 
         const Eigen::Vector3d direction_to_target{
-            target_point_odom->translation() - robot_position};
+            target_point_odom_->translation() - robot_position};
         const double distance_to_target{direction_to_target.norm()};
         const double angle_to_target_odom{
             std::atan2(direction_to_target.y(), direction_to_target.x())};
@@ -78,49 +84,61 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
         const double heading_error{HeadingController::normalize_angle(target_heading - robot_yaw)};
         const double distance_error{distance_to_target - params_.finder_params.min_wall_distance};
 
+        const bool within_min_distance{
+            distance_to_target <= params_.finder_params.min_wall_distance};
+
+        // Update state
+        if (within_min_distance)
+        {
+            reached_min_distance_ = true;
+        }
+
         RCLCPP_INFO_THROTTLE(logger_,
             steady_clock,
             500,
             "=== ERRORS === distance_error=%.3f m (target=%.3f, actual=%.3f), "
-            "heading_error=%.3f rad (%.1f°)",
+            "heading_error=%.3f rad (%.1f°), within_min_dist=%d, reached_min=%d, phase=%s",
             distance_error,
             params_.finder_params.min_wall_distance,
             distance_to_target,
             heading_error,
-            heading_error * 180.0 / M_PI);
+            heading_error * 180.0 / M_PI,
+            within_min_distance,
+            reached_min_distance_,
+            !reached_min_distance_ ? "APPROACH" : "ALIGN");
 
         RCLCPP_DEBUG_STREAM_THROTTLE(logger_,
             steady_clock,
             1000,
             "Robot pose (odom):\n"
                 << input.pose.matrix() << "\nTarget pose (odom):\n"
-                << target_point_odom->matrix());
+                << target_point_odom_->matrix());
 
-        output.cmd_vel.linear.x =
-            std::clamp(params_.forward_speed, 0.0, robot_params_.max_linear_velocity);
-
-        output.cmd_vel.angular.z = heading_controller_.compute_angular_velocity(robot_yaw,
-            target_heading,
-            robot_params_.max_angular_velocity);
-
-        if (heading_controller_.is_aligned(robot_yaw, target_heading))
+        if (!reached_min_distance_)
         {
-            RCLCPP_DEBUG_THROTTLE(logger_,
-                steady_clock,
-                500,
-                "Continuous mode: No rotation needed (heading_error=%.3f rad <= tolerance=%.3f "
-                "rad)",
-                std::abs(heading_error),
-                params_.heading_params.alignment_tolerance);
+            // Phase 1: Approach - only move forward, no rotation
+            output.cmd_vel.linear.x =
+                std::clamp(params_.forward_speed, 0.0, robot_params_.max_linear_velocity);
+            output.cmd_vel.angular.z = 0.0;
         }
         else
         {
-            RCLCPP_DEBUG_THROTTLE(logger_,
-                steady_clock,
-                500,
-                "Continuous mode: Applying rotation (heading_error=%.3f rad > tolerance=%.3f rad)",
-                std::abs(heading_error),
-                params_.heading_params.alignment_tolerance);
+            // Phase 2: Rotate - stop forward motion, only rotate to align
+            output.cmd_vel.linear.x = 0.0;
+
+            if (heading_controller_.is_aligned(robot_yaw, target_heading))
+            {
+                // Alignment complete
+                output.is_complete = true;
+                output.cmd_vel.angular.z = 0.0;
+                return output;
+            }
+            else
+            {
+                output.cmd_vel.angular.z = heading_controller_.compute_angular_velocity(robot_yaw,
+                    target_heading,
+                    robot_params_.max_angular_velocity);
+            }
         }
     }
     else
@@ -139,8 +157,8 @@ ControlInput WallFollowingController::update(const SystemResponse& input)
     RCLCPP_INFO_THROTTLE(logger_,
         steady_clock,
         500,
-        "=== WALL FOLLOWING CONTROLLER OUTPUT === cmd_vel: linear.x=%.3f m/s, angular.z=%.3f "
-        "rad/s (%.1f°/s), is_complete=%d",
+        "=== ALIGN TO WALL CONTROLLER OUTPUT === cmd_vel: linear.x=%.3f m/s, angular.z=%.3f rad/s "
+        "(%.1f°/s), is_complete=%d",
         output.cmd_vel.linear.x,
         output.cmd_vel.angular.z,
         output.cmd_vel.angular.z * 180.0 / M_PI,

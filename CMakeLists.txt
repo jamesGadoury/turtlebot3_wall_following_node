@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(turtlebot3_wall_following_node)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -23,13 +23,41 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 
+# Find all C++ source and header files
+file(GLOB_RECURSE ALL_CXX_SOURCE_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/*.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+)
+
+# Create a format target that runs automatically
+find_program(CLANG_FORMAT "clang-format")
+if(CLANG_FORMAT)
+  add_custom_target(
+    format_code ALL
+    COMMAND ${CLANG_FORMAT} -i ${ALL_CXX_SOURCE_FILES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running clang-format on all source files"
+  )
+endif()
+
 set(SOURCES
   src/msg_utils.cpp
   src/turtlebot3_params.cpp
+  src/heading_controller.cpp
+  src/target_point_finder.cpp
+  src/align_to_wall_controller.cpp
   src/wall_following_controller.cpp
 )
 set(LIBRARY spiral_turtlebot3_library)
 add_library(${LIBRARY} STATIC ${SOURCES})
+
+# Ensure formatting happens before library compilation
+if(CLANG_FORMAT)
+  add_dependencies(${LIBRARY} format_code)
+endif()
 
 target_include_directories(${LIBRARY} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

@@ -1,3 +1,4 @@
+#include "turtlebot3_wall_following_node/align_to_wall_controller.hpp"
 #include "turtlebot3_wall_following_node/controller_interface.hpp"
 #include "turtlebot3_wall_following_node/laser_detection.hpp"
 #include "turtlebot3_wall_following_node/msg_utils.hpp"
@@ -10,6 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <string>
+#include <tf2/time.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_ros/buffer.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
@@ -57,87 +59,69 @@ public:
         time_since_startup_{std::chrono::steady_clock::now()},
         current_state_{WallFollowerState::ALIGNING_TO_WALL}
     {
-        /// TODO: fix initialization
-        // Create alignment controller (one-shot mode)
-        {
-            WallFollowingController::Config config;
-            config.continuous = false;
-            config.sweep_center_angle = 0.0;
-            config.sweep_angle_range = 0.524; // roughly 30 degrees
-            config.min_wall_distance = 0.3;
-            config.max_detection_range = 3.5;
-            config.angular_speed = 0.2;
-            config.forward_speed = 0.05;
-            config.angle_setpoint = -M_PI / 2.0;
-            config.wall_alignment_tolerance = 0.2;
-            align_controller_ = std::make_unique<WallFollowingController>(
-                config, get_logger(), tf_broadcaster_);
-        }
-
-        // Create wall following controller (continuous mode)
-        {
-            WallFollowingController::Config config;
-            config.continuous = true;
-            config.sweep_center_angle = 3 * M_PI / 2.0 + M_PI / 4.0;
-            config.sweep_angle_range = M_PI / 2.0;
-            config.min_wall_distance = 0.3;
-            config.max_detection_range = 1.5;
-            config.angular_speed = 0.2;
-            config.forward_speed = 0.05;
-            config.angle_setpoint = -M_PI / 2.0;
-            config.wall_alignment_tolerance = 0.2;
-            follow_controller_ = std::make_unique<WallFollowingController>(
-                config, get_logger(), tf_broadcaster_);
-        }
+        align_controller_ = std::make_unique<AlignToWallController>(get_logger(), tf_broadcaster_);
+        follow_controller_ =
+            std::make_unique<WallFollowingController>(get_logger(), tf_broadcaster_);
 
         RCLCPP_INFO(get_logger(), "WallFollower initialized in ALIGNING_TO_WALL state");
     }
 
     void handle_laser_scan(sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
-        /// TODO: remove this indirection, just handle the update here and don't track.
-        latest_scan_msg_ = msg;
-        latest_scan_time_ = rclcpp::Time(msg->header.stamp, get_clock()->get_clock_type());
-        update();
-    }
+        const std::string target_frame{"odom"};
+        const std::string source_frame{"base_footprint"};
 
-    void stop_motion()
-    {
-        geometry_msgs::msg::TwistStamped msg;
-        msg.header.frame_id = "";
-        msg.header.stamp = get_clock()->now();
-        msg.twist.linear.x = 0.0;
-        msg.twist.angular.z = 0.0;
-        cmd_vel_publisher_->publish(msg);
+        try
+        {
+            const auto ts{
+                tf_buffer_->lookupTransform(target_frame, source_frame, tf2::TimePointZero)};
+            pose_ = tf2::transformToEigen(ts.transform);
+        }
+        catch (const tf2::TransformException& ex)
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(),
+                *get_clock(),
+                1000,
+                "Could not get transform at scan time: %s",
+                ex.what());
+            return;
+        }
+
+        detections_ = to_laser_detections(*msg);
+
+        RCLCPP_INFO_THROTTLE(get_logger(),
+            *get_clock(),
+            2000,
+            "Update: scan_ranges=%zu, detections=%zu, state=%d",
+            msg->ranges.size(),
+            detections_.size(),
+            static_cast<int>(current_state_));
+
+        handle_motion();
     }
 
     void handle_motion()
     {
-        SystemResponse input;
-        input.timestamp = latest_scan_time_;
-        input.pose = pose_;
-        input.detections = detections_;
+        const SystemResponse input{get_clock()->now(), pose_, detections_};
 
-        ControlInput output;
+        const ControlInput output{[this, &input]
+            {
+                switch (current_state_)
+                {
+                case WallFollowerState::ALIGNING_TO_WALL:
+                    return align_controller_->update(input);
+                case WallFollowerState::FOLLOWING_WALL:
+                    return follow_controller_->update(input);
+                }
+                return ControlInput();
+            }()};
 
-        switch (current_state_)
-        {
-            case WallFollowerState::ALIGNING_TO_WALL:
-                output = align_controller_->update(input);
-                break;
-            case WallFollowerState::FOLLOWING_WALL:
-                output = follow_controller_->update(input);
-                break;
-        }
-
-        // Publish velocity command
         geometry_msgs::msg::TwistStamped cmd_msg;
         cmd_msg.header.frame_id = "";
         cmd_msg.header.stamp = get_clock()->now();
         cmd_msg.twist = output.cmd_vel;
         cmd_vel_publisher_->publish(cmd_msg);
 
-        // Handle state transition
         if (output.is_complete)
         {
             handle_transition();
@@ -148,64 +132,14 @@ public:
     {
         switch (current_state_)
         {
-            case WallFollowerState::ALIGNING_TO_WALL:
-                RCLCPP_INFO(get_logger(), "Alignment complete, transitioning to FOLLOWING_WALL");
-                current_state_ = WallFollowerState::FOLLOWING_WALL;
-                break;
-            case WallFollowerState::FOLLOWING_WALL:
-                // Right wall following runs indefinitely
-                break;
+        case WallFollowerState::ALIGNING_TO_WALL:
+            RCLCPP_INFO(get_logger(), "Alignment complete, transitioning to FOLLOWING_WALL");
+            current_state_ = WallFollowerState::FOLLOWING_WALL;
+            break;
+        case WallFollowerState::FOLLOWING_WALL:
+            // Runs indefinitely
+            break;
         }
-    }
-
-    void update()
-    {
-        /// TODO: a lot of this logic is pointless now that we move to only update on new scans
-        /// don't need to track scan time, can get the latest message, do not need to check
-        /// if we have message or track it, etc
-        if (!latest_scan_msg_)
-        {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "No scan data received yet");
-            return;
-        }
-
-        const auto scan_age = get_clock()->now() - latest_scan_time_;
-        if (scan_age.seconds() > 0.5)
-        {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Scan data is stale (age: %.3f s)", scan_age.seconds());
-            stop_motion();
-            return;
-        }
-
-        const std::string target_frame{"odom"};
-        const std::string source_frame{"base_footprint"};
-
-        try
-        {
-            auto ts = tf_buffer_->lookupTransform(
-                target_frame,
-                source_frame,
-                latest_scan_time_,
-                rclcpp::Duration::from_seconds(0.1)
-            );
-            pose_ = tf2::transformToEigen(ts.transform);
-        }
-        catch (const tf2::TransformException& ex)
-        {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Could not get transform at scan time: %s", ex.what());
-            return;
-        }
-
-        detections_ = to_laser_detections(*latest_scan_msg_);
-
-        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-            "Update: scan_ranges=%zu, detections=%zu, state=%d",
-            latest_scan_msg_->ranges.size(), detections_.size(), static_cast<int>(current_state_));
-
-        handle_motion();
     }
 
 private:
@@ -218,12 +152,9 @@ private:
     Eigen::Isometry3d pose_;
     std::vector<LaserDetection> detections_;
 
-    sensor_msgs::msg::LaserScan::SharedPtr latest_scan_msg_;
-    rclcpp::Time latest_scan_time_{0, 0, RCL_ROS_TIME};
-
     // State machine
     WallFollowerState current_state_;
-    std::unique_ptr<WallFollowingController> align_controller_;
+    std::unique_ptr<AlignToWallController> align_controller_;
     std::unique_ptr<WallFollowingController> follow_controller_;
 };
 
